@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using NUnit.Framework;
 using TMPro;
 using UnityEngine;
@@ -11,14 +12,31 @@ namespace SalesSim.Tests.PlayMode
     /// <summary>
     /// End-to-end smoke test of SalesTestScene against the real Sales Engine: starts the fixed origin scenario, sends one
     /// player turn through the UI and checks that the engine's reply and state come back to the UI.
-    /// No LLM yet: the engine's placeholder customer answers, so Intent stays empty (logged, not asserted).
+    /// With SALESSIM_ANTHROPIC_API_KEY set (environment or .env) this calls the real Anthropic API, so it only runs when
+    /// selected explicitly; without a key the engine's placeholder customer answers.
     /// </summary>
+    [Explicit("Calls the real Anthropic API when SALESSIM_ANTHROPIC_API_KEY is set.")]
+    [Category("LiveEngine")]
     public sealed class SalesEngineSmokeTest
     {
         private const string TestSentence =
             "Guten Tag, mein Name ist Max Berger von Webwerk. Haben Sie kurz zwei Minuten? Es geht darum, wie neue Kundinnen Ihren Salon online finden.";
 
-        private const float TimeoutSeconds = 30f;
+        private const float TimeoutSeconds = 120f;
+
+        private readonly List<string> clientLog = new List<string>();
+
+        [SetUp]
+        public void CaptureClientLog()
+        {
+            Application.logMessageReceivedThreaded += OnLog;
+        }
+
+        [TearDown]
+        public void StopCapturing()
+        {
+            Application.logMessageReceivedThreaded -= OnLog;
+        }
 
         [UnityTest]
         public IEnumerator RealEngine_ProcessesPlayerTurn_AndUiShowsEngineState()
@@ -46,7 +64,31 @@ namespace SalesSim.Tests.PlayMode
             Debug.Log($"[Smoke] {panelAfter}");
 
             Assert.That(customer.text, Is.Not.Empty);
-            Assert.That(panelAfter, Is.Not.EqualTo(panelBefore), "The engine should have changed the customer state.");
+            if (Logged("[SalesClient] Fallback used: no"))
+            {
+                Assert.That(Find<TMP_Text>("IntentText").text, Is.Not.EqualTo("Intent: -"), "The LLM customer always reports an intent.");
+            }
+            else
+            {
+                Assert.That(Logged("[SalesClient] Fallback used: yes"), Is.True, "The client log should say which customer answered.");
+                Assert.That(panelAfter, Is.Not.EqualTo(panelBefore), "The engine should have changed the customer state.");
+            }
+        }
+
+        private void OnLog(string message, string stackTrace, LogType type)
+        {
+            lock (clientLog)
+            {
+                clientLog.Add(message);
+            }
+        }
+
+        private bool Logged(string line)
+        {
+            lock (clientLog)
+            {
+                return clientLog.Contains(line);
+            }
         }
 
         private static string DebugPanel()

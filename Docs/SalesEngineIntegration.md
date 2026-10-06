@@ -8,8 +8,8 @@ Stand: 2026-10-06 · Unity 6000.5.2f1 · Engine `tgregorczyk96/sales_engine`, Br
 |-----|--------|
 | Engine-Domain (`SalesEngine`) in Unity | ✅ läuft (Play Mode, echte Engine-State-Werte) |
 | Origin Scenario aus Seed (`SalesEngine.Content`) | ✅ läuft (`hair-salon:1406361028`, Easy) |
-| Echter LLM-Kunde (`SalesEngine.AI`) in Unity | ❌ **offen** – Anthropic-SDK / System.Text.Json inkompatibel mit Unity (s. unten) |
-| Aktueller Kunde in Unity | Placeholder-Kunde **der Engine** (gescriptete Antworten, kein Intent, keine Stage-Wechsel) |
+| Echter LLM-Kunde (`SalesEngine.AI`) in Unity | ✅ läuft über den SDK-freien `AnthropicMessagesClient`, sobald `SALESSIM_ANTHROPIC_API_KEY` gesetzt ist |
+| Kunde ohne Key | Placeholder-Kunde **der Engine** (gescriptete Antworten, kein Intent); Grund steht im Log (`[SalesClient] Fallback reason`) |
 | Voice, STT, TTS, Hume, Animation, Savegames, Szenario-Auswahl | bewusst nicht integriert |
 
 ## Verwendeter Integrationsweg
@@ -84,18 +84,39 @@ Kleinstmögliche Änderung: `SalesEngine.Content` und `SalesEngine.AI` bauen **z
 - `ContentRepository`, `ProviderErrorText`: `[GeneratedRegex]` unter `#if NET`, sonst statischer `Regex`.
 - `OpenAiResponsesClient`: `HttpRequestError` unter `#if NET`.
 - `ScenarioGenerator.FindOrigins`: Parameter `IReadOnlySet<int>?` → `IEnumerable<int>?` (quellkompatibel).
-- csproj: `TargetFrameworks net10.0;netstandard2.1`; ns2.1 mit `LangVersion 14`, **System.Text.Json 8.0.5** (= Unitys eingebaute Version); **Anthropic-SDK nur für net10.0**, `Anthropic/**` im ns2.1-Build ausgeschlossen.
-- Engine-Tests: vor und nach den Änderungen 1.510 bestanden, 26 übersprungen, 0 Fehler.
+- csproj: `TargetFrameworks net10.0;netstandard2.1`; ns2.1 mit `LangVersion 14`, **System.Text.Json 8.0.5** (= Unitys eingebaute Version); **Anthropic-SDK nur für net10.0**; im ns2.1-Build ist nur `Anthropic/AnthropicStructuredLlmClient.cs` (SDK) ausgeschlossen.
+- `Anthropic/AnthropicMessagesClient.cs` (neu): SDK-freier `IStructuredLlmClient` für beide Targets, gleiche Anfrage und Fehlerabbildung wie der SDK-Client (per Test verglichen), optionaler Trace-Callback ohne Key/Inhalte.
+- Engine-Tests: vorher 1.510 bestanden; jetzt 1.539 bestanden (+29 `AnthropicMessagesClientTests`), 26 übersprungen, 0 Fehler.
 
-## Offener Punkt: echte LLM-Integration in Unity
+## LLM-Kunde in Unity (Anthropic)
 
-**Problem.** Aktiver Provider ist Anthropic. `SalesEngine.AI` nutzt dafür das offizielle Anthropic-SDK 12.53.0. Dessen `netstandard2.0`-Build verlangt **System.Text.Json ≥ 10.0.6** (plus `Microsoft.Extensions.AI.Abstractions 10.5`, `System.Net.ServerSentEvents 10`). Unity 6000.5 referenziert automatisch seine eigene **System.Text.Json 8.0** (`Editor/Data/BCLExtensions`). Eine zweite, gleichnamige STJ 10 in `Assets/Plugins` kollidiert damit; mit STJ 8 ist das SDK nicht lauffähig. Deshalb ist der Anthropic-Client im Unity-Build ausgeschlossen. Der vorhandene OpenAI-Client wäre technisch lauffähig, OpenAI wird aber bewusst nicht verwendet.
+**Warum ein eigener Client:** Das offizielle Anthropic-SDK verlangt System.Text.Json ≥ 10; Unity 6000.5 referenziert automatisch seine eigene STJ 8.0 (`Editor/Data/BCLExtensions`), eine zweite STJ in `Assets/Plugins` würde kollidieren. Deshalb gibt es in `SalesEngine.AI` den SDK-freien `AnthropicMessagesClient` (`HttpClient` + STJ, `POST https://api.anthropic.com/v1/messages`, `output_config.format = json_schema`). Er implementiert dieselbe Schnittstelle `IStructuredLlmClient` wie der SDK-Client; Prompts, Schemas, Simulator und Interpreter sind unverändert. Keine Unity-Abhängigkeit.
 
-Verifiziert: Mit LLM-Verdrahtung lief die Engine in Unity bis zum HTTP-Aufruf (Session, Origin, State OK). Der LLM-Aufruf selbst wurde nicht erfolgreich durchgeführt.
+**Auswahl (`SalesEngineGameSession.Create`):**
+- `SALESSIM_ANTHROPIC_API_KEY` gesetzt (Umgebung zuerst, dann `.env` im Projekt-Root, git-ignoriert) → Engine mit `LlmCustomerSimulator` + `LlmConversationInterpreter` über `AnthropicMessagesClient`. `SALESSIM_ANTHROPIC_MODEL` / `SALESSIM_AI_TIMEOUT_SECONDS` optional (Engine-Defaults).
+- kein Key → Placeholder-Kunde der Engine, Grund im Log.
+- Setup-Fehler (z. B. ungültiger Timeout) → `NotConnectedSalesGameSession` + Error in der Console.
 
-**Kleinste vorgeschlagene Engine-Änderung (noch nicht umgesetzt):** ein SDK-freier `AnthropicMessagesClient : IStructuredLlmClient` in `SalesEngine.AI` (`HttpClient` + System.Text.Json, `POST /v1/messages` mit `output_config.format = json_schema`, gleiche Fehlerabbildung wie `AnthropicStructuredLlmClient`), nur im `netstandard2.1`-Build oder für beide Targets. Geschätzt ~150 Zeilen + Tests analog `AnthropicStructuredLlmClientTests`. Prompts, Schemas und Simulator bleiben unverändert in der Engine. Danach im Unity-Adapter eine Factory `CreateWithAnthropic(contentDirectory, getSetting)` und Key-Bereitstellung (Env/.env, git-ignoriert).
+**Fehlerverhalten (Engine-Design):** Schlägt der LLM-Aufruf fehl (HTTP-Fehler, Timeout, unlesbare oder schemafremde Antwort), gibt es **keinen** Fallback-Text: Die Engine wirft `CustomerSimulationFailedException`, der Zug wird nicht gezählt, der Zustand bleibt unverändert, der Spieler kann ihn erneut senden. Ein Fehler des Interpreters bricht den Zug nicht ab (nur keine Stage-Auswertung).
 
-Alternativen (schlechter): Anthropic-SDK-Version mit STJ-8-Kompatibilität suchen (an SDK-Releases gebunden); Engine out-of-process als lokaler Dienst (neue Architektur).
+**Diagnose-Logs** (Unity Console, ohne Key, Prompts oder Modellausgaben):
+```
+[SalesClient] Customer: Anthropic LLM (model claude-sonnet-5-5, timeout 30s)
+[SalesClient] Request: POST https://api.anthropic.com/v1/messages (customer_simulation_response)
+[SalesClient] Status: 200
+[SalesClient] Response received: yes
+[SalesClient] Deserialization successful: yes
+[SalesClient] Request: POST https://api.anthropic.com/v1/messages (conversation_interpretation)
+...
+[SalesClient] Fallback used: no
+[SalesClient] Fallback reason: -
+```
+Die Zeilen sind als temporäre Diagnose gedacht; sie hängen an einem optionalen Log-Callback und lassen sich im Bootstrap abschalten.
+
+**Tests:**
+- Engine: `tests/SalesEngine.AI.Tests/AnthropicMessagesClientTests.cs` (29 Fälle: Anfrageformat inkl. Vergleich mit SDK-Client, Key nur im Header, Erfolg, Refusal/max_tokens/kein Text/unlesbar, HTTP 401/403/402/404/429/5xx/529, Netzwerk, Abbruch/Timeout, Trace).
+- Unity EditMode: `Assets/Game/Tests/EditMode/SalesEngineGameSessionTests.cs` (7 Fälle mit gescriptetem HTTP, keine Netzkosten): erfolgreiche Antwort → kein Fallback und Antwort im State; echter Anthropic-Client statt Placeholder; HTTP-Fehler / unlesbare Antwort / schemafremde Antwort → Zug schlägt fehl, State unverändert, kein Fallback-Text; ohne Key → Placeholder mit Grund; Logs ohne Key.
+- Unity PlayMode (explizit, echte API): `SalesEngineSmokeTest`.
 
 ## Weitere offene Punkte
 
@@ -107,17 +128,18 @@ Alternativen (schlechter): Anthropic-SDK-Version mit STJ-8-Kompatibilität suche
 
 ## Smoke-Test
 
-`Assets/Game/Tests/PlayMode/SalesEngineSmokeTest.cs` – lädt `SalesTestScene`, sendet einen Satz über die UI, prüft Antwort und State. Lauf (Batchmode, PlayMode) am 2026-10-06: **Passed**.
+`Assets/Game/Tests/PlayMode/SalesEngineSmokeTest.cs` – lädt `SalesTestScene`, sendet einen Satz über die UI, prüft Antwort und State. `[Explicit]`, weil er mit gesetztem Key die echte Anthropic-API aufruft. Lauf mit echter API (Batchmode, PlayMode) am 2026-10-06: **Passed** (7,5 s).
 
 ```
 [Smoke] Session started. Customer: "Guten Tag?" | Trust: 40 | Openness: 50 | Engagement: 25 | Patience: 70 | Stage: Opening | Intent: -
 [Smoke] Player: "Guten Tag, mein Name ist Max Berger von Webwerk. ..."
-[Smoke] Customer: "Ja, worum geht es denn?"
-[Smoke] Trust: 43 | Openness: 50 | Engagement: 29 | Patience: 66 | Stage: Opening | Intent: -
+[Smoke] Customer: "Ach so, na ja, zwei Minuten habe ich gerade zwischen zwei Terminen. Online ist bei uns tatsächlich nicht so toll, worum geht's genau?"
+[Smoke] Trust: 40 | Openness: 50 | Engagement: 32 | Patience: 70 | Stage: Opening | Intent: AskQuestion
 ```
 
 Kommandozeile (Editor muss geschlossen sein):
-`Unity.exe -batchmode -nographics -projectPath "<projekt>" -runTests -testPlatform PlayMode -testResults results.xml -logFile log.txt`
+`Unity.exe -batchmode -nographics -projectPath "<projekt>" -runTests -testPlatform PlayMode -testFilter SalesSim.Tests.PlayMode.SalesEngineSmokeTest -testResults results.xml -logFile log.txt`
+(EditMode-Tests: `-testPlatform EditMode -testFilter SalesSim.Tests.EditMode`)
 
 > **Achtung:** Ein Batchmode-Testlauf startet in einer leeren, unbenannten Szene und speichert diese beim Beenden als
 > zuletzt geöffnete Szene (`Library/LastSceneManagerSetup.txt` → `sceneSetups: []` bzw. `path:` leer). Der Editor

@@ -46,5 +46,7 @@ crashlytics-buildid.txt
 .DS_Store
 Thumbs.db
 
-# Secrets
+# Secrets: local env files stay local; only the example is versioned
 .env
+.env.*
+!.env.example

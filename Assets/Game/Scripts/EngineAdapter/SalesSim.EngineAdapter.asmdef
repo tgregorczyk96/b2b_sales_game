@@ -10,7 +10,8 @@
     "overrideReferences": true,
     "precompiledReferences": [
         "SalesEngine.dll",
-        "SalesEngine.Content.dll"
+        "SalesEngine.Content.dll",
+        "SalesEngine.AI.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [],

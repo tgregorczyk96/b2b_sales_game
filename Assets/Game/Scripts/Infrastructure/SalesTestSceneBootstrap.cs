@@ -9,7 +9,8 @@ namespace SalesSim.Infrastructure
 {
     /// <summary>
     /// Composition root of SalesTestScene: chooses the ISalesGameSession implementation and hands it to the presentation.
-    /// Uses the real Sales Engine, for now without an LLM (the engine's placeholder customer answers); falls back to
+    /// Uses the real Sales Engine; its customer is played by Anthropic when SALESSIM_ANTHROPIC_API_KEY is set (environment
+    /// or the project's git-ignored .env), otherwise by the engine's placeholder. Falls back to
     /// <see cref="NotConnectedSalesGameSession"/> (with an error in the console) when the engine cannot be set up.
     /// </summary>
     public sealed class SalesTestSceneBootstrap : MonoBehaviour
@@ -28,7 +29,9 @@ namespace SalesSim.Infrastructure
             try
             {
                 var contentDirectory = Path.Combine(UnityEngine.Application.streamingAssetsPath, "SalesEngine", "content");
-                return SalesEngineGameSession.CreateWithoutLlm(contentDirectory);
+                var projectRoot = Path.GetDirectoryName(UnityEngine.Application.dataPath);
+                var settings = LocalSettings.Load(Path.Combine(projectRoot, ".env"));
+                return SalesEngineGameSession.Create(contentDirectory, settings.Get, message => Debug.Log(message));
             }
             catch (Exception exception)
             {
