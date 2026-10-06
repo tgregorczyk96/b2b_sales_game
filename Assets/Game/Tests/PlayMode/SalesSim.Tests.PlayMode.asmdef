@@ -5,7 +5,9 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "UnityEngine.UI",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "SalesSim.Application",
+        "SalesSim.Presentation"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

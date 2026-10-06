@@ -116,7 +116,16 @@ Die Zeilen sind als temporäre Diagnose gedacht; sie hängen an einem optionalen
 **Tests:**
 - Engine: `tests/SalesEngine.AI.Tests/AnthropicMessagesClientTests.cs` (29 Fälle: Anfrageformat inkl. Vergleich mit SDK-Client, Key nur im Header, Erfolg, Refusal/max_tokens/kein Text/unlesbar, HTTP 401/403/402/404/429/5xx/529, Netzwerk, Abbruch/Timeout, Trace).
 - Unity EditMode: `Assets/Game/Tests/EditMode/SalesEngineGameSessionTests.cs` (7 Fälle mit gescriptetem HTTP, keine Netzkosten): erfolgreiche Antwort → kein Fallback und Antwort im State; echter Anthropic-Client statt Placeholder; HTTP-Fehler / unlesbare Antwort / schemafremde Antwort → Zug schlägt fehl, State unverändert, kein Fallback-Text; ohne Key → Placeholder mit Grund; Logs ohne Key.
-- Unity PlayMode (explizit, echte API): `SalesEngineSmokeTest`.
+- Unity PlayMode (explizit, echte API): `SalesEngineSmokeTest` (zwei Turns, Verlauf, Thinking, Debug-State).
+
+## Chat-Verlauf in SalesTestScene (reine Presentation)
+
+- `ConversationHistoryView` (ScrollRect → Viewport mit RectMask2D → Content mit VerticalLayoutGroup + ContentSizeFitter), Nachrichten aus dem Prefab `Assets/Game/Prefabs/ConversationMessage.prefab` (`ConversationMessageView`), `ThinkingIndicatorView` als Kunden-Bubble mit `.` → `..` → `...`. Keine Engine-Abhängigkeit; der Verlauf wird nicht gespeichert.
+- Ablauf im `SalesConversationController`: Spieler-Nachricht sofort anzeigen → Thinking an, Input gesperrt → `SendPlayerTurnAsync` → Kunden-Nachricht + Debug-Panel. Bei Fehler: Spieler-Nachricht bleibt („nicht zugestellt“), keine erfundene Kundenantwort, Text zurück ins Eingabefeld; Thinking aus und Input frei in `finally`.
+- Kopierbarer Text: `SelectableMessageText` = read-only `TMP_InputField` ohne Eingabefeld-Optik (Markieren mit der Maus, `Ctrl+C` über TMPs eigenen Copy-Pfad; Tippen/Löschen/Einfügen blockiert `readOnly`; Rich Text aus). Einzige Ergänzung: Mausrad wird an den ScrollRect weitergereicht, weil ein mehrzeiliges TMP-Feld es sonst verschluckt.
+- Auto-Scroll: folgt neuen Nachrichten nur, wenn man unten (≤ 60 px) ist; bleibt am Boden, bis die TMP-Höhe stabil ist; wer hochgescrollt hat, behält die Position.
+- Aufbau reproduzierbar per Editor-Menü „Sales Sim/Build Conversation UI“ (`Assets/Game/Scripts/Editor/ConversationUiBuilder.cs`).
+- Tests: `Assets/Game/Tests/PlayMode/ConversationHistoryTests.cs` (7 Fälle mit gescripteter Session, ohne API).
 
 ## Weitere offene Punkte
 

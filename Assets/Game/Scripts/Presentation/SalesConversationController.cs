@@ -13,7 +13,7 @@ namespace SalesSim.Presentation
     /// </summary>
     public sealed class SalesConversationController : MonoBehaviour
     {
-        [SerializeField] private TMP_Text customerText;
+        [SerializeField] private ConversationHistoryView history;
         [SerializeField] private TMP_InputField playerInput;
         [SerializeField] private Button sendButton;
         [SerializeField] private SalesDebugPanelView debugPanel;
@@ -22,6 +22,10 @@ namespace SalesSim.Presentation
 
         private ISalesGameSession session;
         private Coroutine speakingRoutine;
+        private bool turnInProgress;
+
+        /// <summary>True while a player turn is waiting for the session's answer.</summary>
+        public bool IsTurnInProgress => turnInProgress;
 
         private void Awake()
         {
@@ -37,6 +41,7 @@ namespace SalesSim.Presentation
         public async void Initialize(ISalesGameSession salesSession, string scenarioId)
         {
             session = salesSession ?? throw new ArgumentNullException(nameof(salesSession));
+            history.Clear();
             debugPanel.Render(session.CurrentState);
 
             try
@@ -56,31 +61,63 @@ namespace SalesSim.Presentation
         private async void OnSendClicked()
         {
             var message = playerInput.text.Trim();
-            if (session == null || message.Length == 0)
+            if (session == null || turnInProgress || message.Length == 0)
             {
                 return;
             }
 
+            // Show the player's line and the waiting indicator right away, before the session answers.
+            turnInProgress = true;
             SetInputEnabled(false);
+            playerInput.text = string.Empty;
+            var playerMessage = history.AddPlayerMessage(message);
+            history.ShowThinking();
+
+            var conversationOver = false;
             try
             {
                 var state = await session.SendPlayerTurnAsync(new PlayerTurn(message), destroyCancellationToken);
-                playerInput.text = string.Empty;
+                history.HideThinking();
                 Render(state);
+                conversationOver = state.IsConversationOver;
             }
             catch (OperationCanceledException)
             {
+                return;
             }
             catch (Exception exception)
             {
+                // The session did not take the turn: no customer line is invented; the text goes back for a retry.
                 Debug.LogException(exception, this);
-                SetInputEnabled(true);
+                playerMessage.MarkNotDelivered();
+                if (playerInput.text.Length == 0)
+                {
+                    playerInput.text = message;
+                }
+            }
+            finally
+            {
+                if (this != null)
+                {
+                    history.HideThinking();
+                    turnInProgress = false;
+                }
+            }
+
+            SetInputEnabled(!conversationOver);
+            if (!conversationOver)
+            {
+                playerInput.ActivateInputField();
             }
         }
 
         private void Render(SalesSessionState state)
         {
-            customerText.text = state.CustomerMessage;
+            if (state.CustomerMessage.Length > 0)
+            {
+                history.AddCustomerMessage(state.CustomerMessage);
+            }
+
             debugPanel.Render(state);
             ShowSpeaking();
             SetInputEnabled(!state.IsConversationOver);

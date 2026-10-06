@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
+using SalesSim.Presentation;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -10,8 +12,8 @@ using UnityEngine.UI;
 namespace SalesSim.Tests.PlayMode
 {
     /// <summary>
-    /// End-to-end smoke test of SalesTestScene against the real Sales Engine: starts the fixed origin scenario, sends one
-    /// player turn through the UI and checks that the engine's reply and state come back to the UI.
+    /// End-to-end smoke test of SalesTestScene against the real Sales Engine: starts the fixed origin scenario, sends two
+    /// player turns through the UI and checks chat history, thinking indicator and engine state in the UI.
     /// With SALESSIM_ANTHROPIC_API_KEY set (environment or .env) this calls the real Anthropic API, so it only runs when
     /// selected explicitly; without a key the engine's placeholder customer answers.
     /// </summary>
@@ -19,8 +21,11 @@ namespace SalesSim.Tests.PlayMode
     [Category("LiveEngine")]
     public sealed class SalesEngineSmokeTest
     {
-        private const string TestSentence =
-            "Guten Tag, mein Name ist Max Berger von Webwerk. Haben Sie kurz zwei Minuten? Es geht darum, wie neue Kundinnen Ihren Salon online finden.";
+        private static readonly string[] Sentences =
+        {
+            "Guten Tag, mein Name ist Max Berger von Webwerk. Haben Sie kurz zwei Minuten? Es geht darum, wie neue Kundinnen Ihren Salon online finden.",
+            "Wie finden denn neue Kundinnen bisher zu Ihnen, eher über Empfehlungen oder auch über Google?",
+        };
 
         private const float TimeoutSeconds = 120f;
 
@@ -29,50 +34,59 @@ namespace SalesSim.Tests.PlayMode
         [SetUp]
         public void CaptureClientLog()
         {
-            Application.logMessageReceivedThreaded += OnLog;
+            UnityEngine.Application.logMessageReceivedThreaded += OnLog;
         }
 
         [TearDown]
         public void StopCapturing()
         {
-            Application.logMessageReceivedThreaded -= OnLog;
+            UnityEngine.Application.logMessageReceivedThreaded -= OnLog;
         }
 
         [UnityTest]
-        public IEnumerator RealEngine_ProcessesPlayerTurn_AndUiShowsEngineState()
+        public IEnumerator RealEngine_TwoTurns_ShowInHistory_WithThinkingAndEngineState()
         {
             yield return SceneManager.LoadSceneAsync("SalesTestScene");
 
             var input = Find<TMP_InputField>("PlayerInput");
             var send = Find<Button>("SendButton");
-            var customer = Find<TMP_Text>("CustomerText");
+            var history = Object.FindAnyObjectByType<ConversationHistoryView>();
 
-            yield return WaitUntil(() => input.interactable, "the session to start");
-            var opening = customer.text;
-            var panelBefore = DebugPanel();
-            Debug.Log($"[Smoke] Session started. Customer: \"{opening}\" | {panelBefore}");
-            Assert.That(opening, Is.Not.Empty.And.Not.Contains("nicht verbunden"), "Opening line should come from the engine.");
-            Assert.That(Find<TMP_Text>("StageText").text, Is.EqualTo("Stage: Opening"));
+            yield return WaitUntil(() => input.interactable && history.Messages.Count == 1, "the session to start");
+            Assert.That(history.Messages[0].Sender, Is.EqualTo(ConversationSender.Customer));
+            Assert.That(history.Messages[0].Text, Is.Not.Empty.And.Not.Contains("nicht verbunden"));
+            Debug.Log($"[Smoke] Kunde: \"{history.Messages[0].Text}\" | {DebugPanel()}");
 
-            input.text = TestSentence;
-            send.onClick.Invoke();
-            yield return WaitUntil(() => input.interactable && customer.text != opening, "the customer's reply");
-
-            var panelAfter = DebugPanel();
-            Debug.Log($"[Smoke] Player: \"{TestSentence}\"");
-            Debug.Log($"[Smoke] Customer: \"{customer.text}\"");
-            Debug.Log($"[Smoke] {panelAfter}");
-
-            Assert.That(customer.text, Is.Not.Empty);
-            if (Logged("[SalesClient] Fallback used: no"))
+            foreach (var sentence in Sentences)
             {
-                Assert.That(Find<TMP_Text>("IntentText").text, Is.Not.EqualTo("Intent: -"), "The LLM customer always reports an intent.");
+                var countBefore = history.Messages.Count;
+                var panelBefore = DebugPanel();
+                input.text = sentence;
+                send.onClick.Invoke();
+
+                Assert.That(history.Messages.Count, Is.EqualTo(countBefore + 1), "Player message is shown immediately.");
+                Assert.That(history.Messages.Last().Sender, Is.EqualTo(ConversationSender.Player));
+                Assert.That(history.IsThinking, Is.True, "Thinking indicator appears right after sending.");
+                Assert.That(send.interactable, Is.False, "No second turn while waiting.");
+
+                var started = Time.realtimeSinceStartup;
+                yield return WaitUntil(() => history.Messages.Count == countBefore + 2, "the customer's reply");
+                var waited = Time.realtimeSinceStartup - started;
+
+                Assert.That(history.Messages.Last().Sender, Is.EqualTo(ConversationSender.Customer));
+                Assert.That(history.IsThinking, Is.False, "Thinking indicator is gone after the reply.");
+                Assert.That(send.interactable, Is.True);
+                Debug.Log($"[Smoke] Du: \"{sentence}\"");
+                Debug.Log($"[Smoke] Kunde ({waited:0.0}s, thinking shown meanwhile): \"{history.Messages.Last().Text}\"");
+                Debug.Log($"[Smoke] {DebugPanel()} (before: {panelBefore})");
+
+                if (Logged("[SalesClient] Fallback used: no"))
+                {
+                    Assert.That(Find<TMP_Text>("IntentText").text, Is.Not.EqualTo("Intent: -"), "The LLM customer always reports an intent.");
+                }
             }
-            else
-            {
-                Assert.That(Logged("[SalesClient] Fallback used: yes"), Is.True, "The client log should say which customer answered.");
-                Assert.That(panelAfter, Is.Not.EqualTo(panelBefore), "The engine should have changed the customer state.");
-            }
+
+            Assert.That(history.Messages.Count, Is.EqualTo(1 + 2 * Sentences.Length), "All turns stay visible.");
         }
 
         private void OnLog(string message, string stackTrace, LogType type)
