@@ -118,3 +118,9 @@ Alternativen (schlechter): Anthropic-SDK-Version mit STJ-8-Kompatibilität suche
 
 Kommandozeile (Editor muss geschlossen sein):
 `Unity.exe -batchmode -nographics -projectPath "<projekt>" -runTests -testPlatform PlayMode -testResults results.xml -logFile log.txt`
+
+> **Achtung:** Ein Batchmode-Testlauf startet in einer leeren, unbenannten Szene und speichert diese beim Beenden als
+> zuletzt geöffnete Szene (`Library/LastSceneManagerSetup.txt` → `sceneSetups: []` bzw. `path:` leer). Der Editor
+> öffnet danach „Untitled“, und Play zeigt **nichts**. Nach einem Batchmode-Lauf im Editor `Assets/Game/Scenes/SalesTestScene.unity`
+> öffnen (oder die Datei wieder auf diese Szene setzen). `SalesTestScene` ist Index 0 der Build Settings, ein gebautes
+> Spiel startet daher immer mit ihr.
