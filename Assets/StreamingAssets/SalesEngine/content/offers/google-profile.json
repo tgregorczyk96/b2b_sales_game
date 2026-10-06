@@ -1,0 +1,5 @@
+{
+  "id": "google-profile",
+  "displayName": "Google Business Profile",
+  "capabilities": [ "local-search-visibility", "done-for-you-care" ]
+}

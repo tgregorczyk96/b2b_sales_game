@@ -1,0 +1,5 @@
+{
+  "id": "review-stand",
+  "displayName": "Review Stand",
+  "capabilities": [ "review-collection" ]
+}

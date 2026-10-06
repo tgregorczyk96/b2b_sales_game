@@ -1,0 +1,81 @@
+{
+  "id": "studio-lockenwerk",
+  "industry": "hair-salon",
+  "name": "Studio Lockenwerk",
+  "employeeCount": 2,
+  "topics": [
+    {
+      "id": "booking",
+      "subject": "Terminvergabe",
+      "businessImportance": "High",
+      "facts": [
+        {
+          "id": "booking.work-undisturbed",
+          "kind": "Goal",
+          "statement": "Die Inhaberin möchte Termine vergeben, ohne bei der Arbeit an der Kundin ständig unterbrochen zu werden."
+        },
+        {
+          "id": "booking.phone-only",
+          "kind": "CurrentSolution",
+          "statement": "Termine werden ausschließlich telefonisch vergeben; das Telefon klingelt auch während der Behandlungen."
+        },
+        {
+          "id": "booking.interrupted-treatments",
+          "kind": "Problem",
+          "statement": "Behandlungen werden für Anrufe unterbrochen oder Anrufe bleiben unbeantwortet, weil beide Friseurinnen am Stuhl stehen.",
+          "relatedTo": [ "booking.work-undisturbed", "booking.phone-only" ]
+        },
+        {
+          "id": "booking.lost-bookings",
+          "kind": "Impact",
+          "statement": "Durch nicht angenommene Anrufe gehen grob zwei bis vier Buchungen pro Woche verloren.",
+          "relatedTo": [ "booking.interrupted-treatments" ]
+        }
+      ]
+    },
+    {
+      "id": "reputation",
+      "subject": "Ruf und Bewertungen",
+      "businessImportance": "Medium",
+      "facts": [
+        {
+          "id": "reputation.trust-before-visit",
+          "kind": "Goal",
+          "statement": "Neue Kundinnen sollen dem Studio schon vor dem ersten Besuch vertrauen."
+        },
+        {
+          "id": "reputation.few-reviews",
+          "kind": "Situation",
+          "statement": "Das Studio hat nur sieben Google-Bewertungen, obwohl die Kundinnen sehr zufrieden sind."
+        },
+        {
+          "id": "reputation.asking-in-person",
+          "kind": "CurrentSolution",
+          "statement": "Zufriedene Kundinnen werden gelegentlich beim Bezahlen mündlich um eine Bewertung gebeten."
+        },
+        {
+          "id": "reputation.losing-to-competitors",
+          "kind": "Problem",
+          "statement": "Wer das Studio nicht kennt, wählt bei so wenigen Bewertungen eher einen Salon in der Nähe mit vielen Bewertungen.",
+          "relatedTo": [ "reputation.trust-before-visit", "reputation.few-reviews" ]
+        }
+      ]
+    }
+  ],
+  "needs": [
+    {
+      "id": "book-without-phone",
+      "statement": "Kundinnen sollen Termine selbst buchen können, ohne anzurufen – eingerichtet und gepflegt, ohne dass die Inhaberin sich um Technik kümmern muss.",
+      "importance": "High",
+      "basedOn": [ "booking.work-undisturbed", "booking.interrupted-treatments" ],
+      "requires": [ "online-booking", "done-for-you-care" ]
+    },
+    {
+      "id": "more-reviews",
+      "statement": "Zufriedene Kundinnen sollen häufiger eine Bewertung hinterlassen, damit neue Kundinnen dem Studio eher vertrauen.",
+      "importance": "Low",
+      "basedOn": [ "reputation.trust-before-visit", "reputation.losing-to-competitors" ],
+      "requires": [ "review-collection" ]
+    }
+  ]
+}

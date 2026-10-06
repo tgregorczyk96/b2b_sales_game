@@ -3,6 +3,7 @@
     "rootNamespace": "SalesSim.Infrastructure",
     "references": [
         "SalesSim.Application",
+        "SalesSim.EngineAdapter",
         "SalesSim.Presentation"
     ],
     "includePlatforms": [],

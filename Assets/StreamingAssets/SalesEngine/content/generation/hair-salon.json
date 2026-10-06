@@ -1,0 +1,164 @@
+{
+  "id": "hair-salon",
+  "situations": [
+    { "channel": "ColdCall", "description": "Tuesday morning, between two appointments" },
+    { "channel": "ColdCall", "description": "Friday afternoon; the salon is busy and the next client is already waiting", "tags": [ "time-pressure" ] },
+    { "channel": "WalkIn", "description": "Tuesday morning; the owner is at the reception desk, no client in the chair" },
+    { "channel": "WalkIn", "description": "Saturday late morning; the waiting area is full and the owner is in the middle of a haircut", "tags": [ "time-pressure" ] }
+  ],
+  "worlds": [
+    {
+      "business": "salon-haarmonie",
+      "offers": [ "website", "google-profile", "review-stand" ],
+      "customers": [
+        { "name": "Sabine Keller", "role": "Owner" },
+        { "name": "Andrea Wolff", "role": "Owner" }
+      ],
+      "perspectives": [
+        {
+          "id": "staffing-on-mind",
+          "complexity": "Moderate",
+          "tags": [ "hidden-need" ],
+          "topics": [
+            { "topic": "capacity", "perceivedPriority": "Low" },
+            { "topic": "acquisition", "perceivedPriority": "Low" },
+            { "topic": "staffing", "perceivedPriority": "High" }
+          ],
+          "facts": [
+            { "fact": "capacity.even-utilization", "awareness": "Vague", "sharing": "Freely" },
+            { "fact": "capacity.quiet-weeks-exist", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "capacity.unused-capacity", "awareness": "Vague", "sharing": "WhenAsked" },
+            { "fact": "capacity.lost-revenue", "awareness": "Unaware", "sharing": "WhenAsked" },
+            { "fact": "acquisition.steady-new-clients", "awareness": "Vague", "sharing": "Freely" },
+            { "fact": "acquisition.word-of-mouth", "awareness": "Aware", "sharing": "Freely", "satisfaction": "Satisfied" },
+            { "fact": "acquisition.outdated-website", "awareness": "Aware", "sharing": "WhenAsked" },
+            { "fact": "acquisition.low-online-visibility", "awareness": "Unaware", "sharing": "WhenAsked" },
+            { "fact": "staffing.retain-team", "awareness": "Aware", "sharing": "OnlyWithTrust" },
+            { "fact": "staffing.stylist-part-time", "awareness": "Aware", "sharing": "OnlyWithTrust" },
+            { "fact": "staffing.owner-no-time", "awareness": "Aware", "sharing": "Freely" }
+          ]
+        },
+        {
+          "id": "visibility-concern",
+          "complexity": "Simple",
+          "tags": [ "beginner-friendly", "clear-need" ],
+          "topics": [
+            { "topic": "capacity", "perceivedPriority": "Medium" },
+            { "topic": "acquisition", "perceivedPriority": "High" },
+            { "topic": "staffing", "perceivedPriority": "Low" }
+          ],
+          "facts": [
+            { "fact": "capacity.even-utilization", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "capacity.quiet-weeks-exist", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "capacity.unused-capacity", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "capacity.lost-revenue", "awareness": "Vague", "sharing": "WhenAsked" },
+            { "fact": "acquisition.steady-new-clients", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "acquisition.word-of-mouth", "awareness": "Aware", "sharing": "Freely", "satisfaction": "Mixed" },
+            { "fact": "acquisition.outdated-website", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "acquisition.low-online-visibility", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "staffing.retain-team", "awareness": "Vague", "sharing": "WhenAsked" },
+            { "fact": "staffing.stylist-part-time", "awareness": "Aware", "sharing": "WhenAsked" },
+            { "fact": "staffing.owner-no-time", "awareness": "Aware", "sharing": "Freely" }
+          ]
+        },
+        {
+          "id": "guarded",
+          "complexity": "Complex",
+          "tags": [ "hidden-need", "skeptical" ],
+          "topics": [
+            { "topic": "capacity", "perceivedPriority": "Low" },
+            { "topic": "acquisition", "perceivedPriority": "Low" },
+            { "topic": "staffing", "perceivedPriority": "Medium" }
+          ],
+          "facts": [
+            { "fact": "capacity.even-utilization", "awareness": "Vague", "sharing": "OnlyWithTrust" },
+            { "fact": "capacity.quiet-weeks-exist", "awareness": "Aware", "sharing": "WhenAsked" },
+            { "fact": "capacity.unused-capacity", "awareness": "Unaware", "sharing": "OnlyWithTrust" },
+            { "fact": "capacity.lost-revenue", "awareness": "Unaware", "sharing": "OnlyWithTrust" },
+            { "fact": "acquisition.steady-new-clients", "awareness": "Vague", "sharing": "OnlyWithTrust" },
+            { "fact": "acquisition.word-of-mouth", "awareness": "Aware", "sharing": "WhenAsked", "satisfaction": "Satisfied" },
+            { "fact": "acquisition.outdated-website", "awareness": "Vague", "sharing": "OnlyWithTrust" },
+            { "fact": "acquisition.low-online-visibility", "awareness": "Unaware", "sharing": "OnlyWithTrust" },
+            { "fact": "staffing.retain-team", "awareness": "Aware", "sharing": "OnlyWithTrust" },
+            { "fact": "staffing.stylist-part-time", "awareness": "Aware", "sharing": "OnlyWithTrust" },
+            { "fact": "staffing.owner-no-time", "awareness": "Aware", "sharing": "Freely" }
+          ]
+        }
+      ]
+    },
+    {
+      "business": "studio-lockenwerk",
+      "offers": [ "website", "google-profile", "review-stand" ],
+      "customers": [
+        { "name": "Jana Petrović", "role": "Owner" },
+        { "name": "Miriam Schulte", "role": "Owner" }
+      ],
+      "perspectives": [
+        {
+          "id": "phone-stress",
+          "complexity": "Simple",
+          "tags": [ "beginner-friendly", "clear-need" ],
+          "topics": [
+            { "topic": "booking", "perceivedPriority": "High" },
+            { "topic": "reputation", "perceivedPriority": "Low" }
+          ],
+          "facts": [
+            { "fact": "booking.work-undisturbed", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "booking.phone-only", "awareness": "Aware", "sharing": "Freely", "satisfaction": "Dissatisfied" },
+            { "fact": "booking.interrupted-treatments", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "booking.lost-bookings", "awareness": "Vague", "sharing": "WhenAsked" },
+            { "fact": "reputation.trust-before-visit", "awareness": "Vague", "sharing": "WhenAsked" },
+            { "fact": "reputation.few-reviews", "awareness": "Aware", "sharing": "WhenAsked" },
+            { "fact": "reputation.asking-in-person", "awareness": "Aware", "sharing": "WhenAsked", "satisfaction": "Mixed" },
+            { "fact": "reputation.losing-to-competitors", "awareness": "Unaware", "sharing": "WhenAsked" }
+          ]
+        },
+        {
+          "id": "phone-is-fine",
+          "complexity": "Moderate",
+          "tags": [ "hidden-need" ],
+          "topics": [
+            { "topic": "booking", "perceivedPriority": "Low" },
+            { "topic": "reputation", "perceivedPriority": "Medium" }
+          ],
+          "facts": [
+            { "fact": "booking.work-undisturbed", "awareness": "Vague", "sharing": "WhenAsked" },
+            { "fact": "booking.phone-only", "awareness": "Aware", "sharing": "Freely", "satisfaction": "Satisfied" },
+            { "fact": "booking.interrupted-treatments", "awareness": "Vague", "sharing": "WhenAsked" },
+            { "fact": "booking.lost-bookings", "awareness": "Unaware", "sharing": "WhenAsked" },
+            { "fact": "reputation.trust-before-visit", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "reputation.few-reviews", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "reputation.asking-in-person", "awareness": "Aware", "sharing": "Freely", "satisfaction": "Mixed" },
+            { "fact": "reputation.losing-to-competitors", "awareness": "Vague", "sharing": "WhenAsked" }
+          ]
+        }
+      ]
+    },
+    {
+      "business": "barbier-kante",
+      "offers": [ "website", "google-profile", "review-stand" ],
+      "customers": [
+        { "name": "Murat Aydın", "role": "Owner" },
+        { "name": "Dennis Kraft", "role": "Owner" }
+      ],
+      "perspectives": [
+        {
+          "id": "fully-booked",
+          "complexity": "Simple",
+          "tags": [ "clear-need" ],
+          "topics": [
+            { "topic": "demand", "perceivedPriority": "Low" },
+            { "topic": "staffing", "perceivedPriority": "High" }
+          ],
+          "facts": [
+            { "fact": "demand.booked-out", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "demand.online-presence", "awareness": "Aware", "sharing": "Freely", "satisfaction": "Satisfied" },
+            { "fact": "staffing.second-barber", "awareness": "Aware", "sharing": "Freely" },
+            { "fact": "staffing.no-applicants", "awareness": "Aware", "sharing": "WhenAsked" },
+            { "fact": "staffing.turned-away", "awareness": "Aware", "sharing": "WhenAsked" }
+          ]
+        }
+      ]
+    }
+  ]
+}

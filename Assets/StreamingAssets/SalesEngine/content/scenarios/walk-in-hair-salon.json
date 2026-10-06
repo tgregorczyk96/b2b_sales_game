@@ -1,0 +1,33 @@
+{
+  "id": "walk-in-hair-salon",
+  "business": "salon-haarmonie",
+  "offer": "website",
+  "customer": {
+    "name": "Sabine Keller",
+    "role": "Owner"
+  },
+  "situation": {
+    "channel": "WalkIn",
+    "description": "Tuesday morning; the owner is at the reception desk, no client in the chair"
+  },
+  "customerPerspective": {
+    "topics": [
+      { "topic": "capacity", "perceivedPriority": "Low" },
+      { "topic": "acquisition", "perceivedPriority": "Low" },
+      { "topic": "staffing", "perceivedPriority": "High" }
+    ],
+    "facts": [
+      { "fact": "capacity.even-utilization", "awareness": "Vague", "sharing": "Freely" },
+      { "fact": "capacity.quiet-weeks-exist", "awareness": "Aware", "sharing": "Freely" },
+      { "fact": "capacity.unused-capacity", "awareness": "Vague", "sharing": "WhenAsked" },
+      { "fact": "capacity.lost-revenue", "awareness": "Unaware", "sharing": "WhenAsked" },
+      { "fact": "acquisition.steady-new-clients", "awareness": "Vague", "sharing": "Freely" },
+      { "fact": "acquisition.word-of-mouth", "awareness": "Aware", "sharing": "Freely", "satisfaction": "Satisfied" },
+      { "fact": "acquisition.outdated-website", "awareness": "Aware", "sharing": "WhenAsked" },
+      { "fact": "acquisition.low-online-visibility", "awareness": "Unaware", "sharing": "WhenAsked" },
+      { "fact": "staffing.retain-team", "awareness": "Aware", "sharing": "OnlyWithTrust" },
+      { "fact": "staffing.stylist-part-time", "awareness": "Aware", "sharing": "OnlyWithTrust" },
+      { "fact": "staffing.owner-no-time", "awareness": "Aware", "sharing": "Freely" }
+    ]
+  }
+}

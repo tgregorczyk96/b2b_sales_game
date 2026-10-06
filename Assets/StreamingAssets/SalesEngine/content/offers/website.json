@@ -1,0 +1,5 @@
+{
+  "id": "website",
+  "displayName": "Website",
+  "capabilities": [ "mobile-website", "local-search-visibility", "done-for-you-care", "online-booking" ]
+}

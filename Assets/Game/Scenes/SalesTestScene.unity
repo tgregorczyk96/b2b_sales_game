@@ -270,7 +270,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: SalesSim.Infrastructure::SalesSim.Infrastructure.SalesTestSceneBootstrap
   conversationController: {fileID: 1540595743}
-  scenarioId: test-scenario
+  scenarioId: hair-salon:1406361028
 --- !u!4 &17969594
 Transform:
   m_ObjectHideFlags: 0

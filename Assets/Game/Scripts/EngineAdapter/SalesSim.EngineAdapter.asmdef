@@ -1,0 +1,19 @@
+{
+    "name": "SalesSim.EngineAdapter",
+    "rootNamespace": "SalesSim.EngineAdapter",
+    "references": [
+        "SalesSim.Application"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "SalesEngine.dll",
+        "SalesEngine.Content.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

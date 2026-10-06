@@ -1,0 +1,11 @@
+{
+  "capabilities": [
+    { "id": "mobile-website", "description": "Moderner, für Smartphones optimierter Webauftritt." },
+    { "id": "local-search-visibility", "description": "Bessere Sichtbarkeit bei lokalen Google-Suchen (Google-Unternehmensprofil, lokale Suchergebnisse)." },
+    { "id": "done-for-you-care", "description": "Einrichtung und laufende Pflege werden weitgehend übernommen – kaum Eigenaufwand für den Kunden." },
+    { "id": "online-booking", "description": "Online-Terminbuchung bzw. einfache Kontaktaufnahme über das Internet." },
+    { "id": "review-collection", "description": "Mehr Kundenbewertungen sammeln, z. B. per Aufsteller mit QR-Code." },
+    { "id": "off-peak-promotion", "description": "Gezielte Aktionen, um Termine in ruhigen Zeiten zu füllen." },
+    { "id": "staff-recruiting", "description": "Unterstützung bei der Suche und Gewinnung von Fachpersonal." }
+  ]
+}

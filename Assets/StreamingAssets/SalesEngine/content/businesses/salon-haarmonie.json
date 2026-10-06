@@ -1,0 +1,111 @@
+{
+  "id": "salon-haarmonie",
+  "industry": "hair-salon",
+  "name": "Salon Haarmonie",
+  "employeeCount": 4,
+  "topics": [
+    {
+      "id": "capacity",
+      "subject": "Auslastung",
+      "businessImportance": "High",
+      "facts": [
+        {
+          "id": "capacity.even-utilization",
+          "kind": "Goal",
+          "statement": "Die Stühle sollen über die Woche möglichst gleichmäßig ausgelastet sein."
+        },
+        {
+          "id": "capacity.quiet-weeks-exist",
+          "kind": "Situation",
+          "statement": "In vielen Wochen sind dienstags und mittwochs mehrere Termine frei."
+        },
+        {
+          "id": "capacity.unused-capacity",
+          "kind": "Problem",
+          "statement": "In ruhigen Wochen bleibt Kapazität ungenutzt, obwohl der Salon mehr Kundinnen bedienen könnte.",
+          "relatedTo": [ "capacity.even-utilization", "capacity.quiet-weeks-exist" ]
+        },
+        {
+          "id": "capacity.lost-revenue",
+          "kind": "Impact",
+          "statement": "Ungenutzte Stunden bedeuten pro ruhiger Woche grob mehrere hundert Euro entgangenen Umsatz.",
+          "relatedTo": [ "capacity.unused-capacity" ]
+        }
+      ]
+    },
+    {
+      "id": "acquisition",
+      "subject": "Neukundinnen",
+      "businessImportance": "Medium",
+      "facts": [
+        {
+          "id": "acquisition.steady-new-clients",
+          "kind": "Goal",
+          "statement": "Der Salon möchte regelmäßig neue Stammkundinnen gewinnen."
+        },
+        {
+          "id": "acquisition.word-of-mouth",
+          "kind": "CurrentSolution",
+          "statement": "Neue Kundinnen kommen fast ausschließlich über Empfehlungen."
+        },
+        {
+          "id": "acquisition.outdated-website",
+          "kind": "Situation",
+          "statement": "Die Website ist von 2016, nicht für Smartphones optimiert und hat keine Online-Buchung."
+        },
+        {
+          "id": "acquisition.low-online-visibility",
+          "kind": "Problem",
+          "statement": "Bei lokalen Google-Suchen erscheint der Salon kaum, Menschen ohne Empfehlung erreicht er nicht.",
+          "relatedTo": [ "acquisition.steady-new-clients", "capacity.even-utilization" ]
+        }
+      ]
+    },
+    {
+      "id": "staffing",
+      "subject": "Personal",
+      "businessImportance": "High",
+      "facts": [
+        {
+          "id": "staffing.retain-team",
+          "kind": "Goal",
+          "statement": "Das Team soll gehalten werden, ohne dass die Inhaberin sich überlastet."
+        },
+        {
+          "id": "staffing.stylist-part-time",
+          "kind": "Situation",
+          "statement": "Eine von drei Friseurinnen arbeitet seit Kurzem nur noch in Teilzeit."
+        },
+        {
+          "id": "staffing.owner-no-time",
+          "kind": "Constraint",
+          "statement": "Die Inhaberin steht selbst den ganzen Tag am Stuhl und hat kaum Zeit für Marketing oder Technik.",
+          "relatedTo": [ "acquisition.steady-new-clients" ]
+        }
+      ]
+    }
+  ],
+  "needs": [
+    {
+      "id": "new-clients-without-own-effort",
+      "statement": "Der Salon soll online auch von Menschen ohne Empfehlung gefunden werden und so neue Stammkundinnen gewinnen – ohne dass die Inhaberin dafür selbst Zeit in Marketing oder Technik stecken muss.",
+      "importance": "High",
+      "basedOn": [ "acquisition.steady-new-clients", "acquisition.low-online-visibility", "staffing.owner-no-time" ],
+      "requires": [ "local-search-visibility", "done-for-you-care" ]
+    },
+    {
+      "id": "fill-quiet-days",
+      "statement": "Freie Termine an ruhigen Tagen sollen gezielt gebucht werden, damit die Stühle gleichmäßiger ausgelastet sind.",
+      "importance": "Medium",
+      "basedOn": [ "capacity.even-utilization", "capacity.unused-capacity" ],
+      "requires": [ "online-booking", "off-peak-promotion" ]
+    },
+    {
+      "id": "relieve-the-team",
+      "statement": "Das Team soll personell so aufgestellt sein, dass weder die Inhaberin noch die Friseurinnen dauerhaft überlastet sind.",
+      "importance": "High",
+      "basedOn": [ "staffing.retain-team", "staffing.stylist-part-time" ],
+      "requires": [ "staff-recruiting" ]
+    }
+  ]
+}

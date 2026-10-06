@@ -1,0 +1,58 @@
+{
+  "id": "barbier-kante",
+  "industry": "hair-salon",
+  "name": "Barbier Kante",
+  "employeeCount": 2,
+  "topics": [
+    {
+      "id": "demand",
+      "subject": "Nachfrage",
+      "businessImportance": "Medium",
+      "facts": [
+        {
+          "id": "demand.booked-out",
+          "kind": "Situation",
+          "statement": "Der Laden ist an allen Tagen zwei bis drei Wochen im Voraus ausgebucht."
+        },
+        {
+          "id": "demand.online-presence",
+          "kind": "CurrentSolution",
+          "statement": "Website, Online-Buchung und Google-Profil sind aktuell; der Neffe des Inhabers pflegt sie, es gibt über 300 Bewertungen."
+        }
+      ]
+    },
+    {
+      "id": "staffing",
+      "subject": "Personal",
+      "businessImportance": "High",
+      "facts": [
+        {
+          "id": "staffing.second-barber",
+          "kind": "Goal",
+          "statement": "Der Inhaber möchte einen zweiten festangestellten Barbier finden, um mehr Kunden bedienen zu können."
+        },
+        {
+          "id": "staffing.no-applicants",
+          "kind": "Problem",
+          "statement": "Seit einem halben Jahr hat sich kein geeigneter Barbier beworben.",
+          "relatedTo": [ "staffing.second-barber" ]
+        },
+        {
+          "id": "staffing.turned-away",
+          "kind": "Impact",
+          "statement": "Jede Woche müssen Stammkunden auf später vertröstet werden; einige sind schon abgewandert.",
+          "relatedTo": [ "staffing.no-applicants" ]
+        }
+      ]
+    }
+  ],
+  "needs": [
+    {
+      "id": "find-second-barber",
+      "statement": "Der Laden braucht einen zweiten Barbier, um die vorhandene Nachfrage bedienen zu können.",
+      "importance": "High",
+      "basedOn": [ "staffing.second-barber", "staffing.no-applicants" ],
+      "requires": [ "staff-recruiting" ]
+    }
+  ]
+}

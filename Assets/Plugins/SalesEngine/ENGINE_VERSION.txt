@@ -1,0 +1,5 @@
+﻿Sales Engine build copied by Tools/Sync-SalesEngine.ps1 - do not edit the DLLs or content by hand.
+repository: https://github.com/tgregorczyk96/sales_engine.git
+branch:     feature/unity-netstandard-targets
+commit:     6bffd33b790c34c2d922277d247fb5c6a7eb2ba8 (uncommitted changes)
+target:     netstandard2.1 (Release)
