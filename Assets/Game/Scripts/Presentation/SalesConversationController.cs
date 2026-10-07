@@ -56,6 +56,8 @@ namespace SalesSim.Presentation
             sendButton.onClick.AddListener(OnSendClicked);
             endButton.onClick.AddListener(OnEndClicked);
             guidance.Requested += OnGuidanceRequested;
+            guidance.Copied += ReturnFocusToInput;
+            history.MessageCopied += ReturnFocusToInput;
             SetInputEnabled(false);
         }
 
@@ -64,6 +66,8 @@ namespace SalesSim.Presentation
             sendButton.onClick.RemoveListener(OnSendClicked);
             endButton.onClick.RemoveListener(OnEndClicked);
             guidance.Requested -= OnGuidanceRequested;
+            guidance.Copied -= ReturnFocusToInput;
+            history.MessageCopied -= ReturnFocusToInput;
         }
 
         /// <summary>Starts a fresh conversation (one run) on <paramref name="salesSession"/>.</summary>
@@ -156,7 +160,7 @@ namespace SalesSim.Presentation
             SetInputEnabled(!conversationOver);
             if (!conversationOver)
             {
-                playerInput.ActivateInputField();
+                FocusInput();
             }
             else
             {
@@ -257,7 +261,7 @@ namespace SalesSim.Presentation
             if (requestRun == run && inputEnabled)
             {
                 // Straight back to writing; the draft is kept (PlayerInput does not select all on focus).
-                playerInput.ActivateInputField();
+                FocusInput();
             }
         }
 
@@ -279,6 +283,34 @@ namespace SalesSim.Presentation
                     return level == GuidanceLevel.Example
                         ? "Beispiel konnte nicht erstellt werden. Versuch es erneut oder schreib einfach weiter."
                         : "Hilfe konnte nicht geladen werden. Versuch es erneut oder schreib einfach weiter.";
+            }
+        }
+
+        /// <summary>
+        /// Gives the input the focus with the caret at the end of the draft. TMP activates the field only in its next
+        /// update and would leave the caret at the start, so typing on would insert in front of the draft.
+        /// </summary>
+        private void FocusInput()
+        {
+            playerInput.ActivateInputField();
+            StartCoroutine(MoveCaretToEndAfterActivation());
+        }
+
+        private IEnumerator MoveCaretToEndAfterActivation()
+        {
+            yield return null;
+            if (playerInput.isFocused)
+            {
+                playerInput.MoveTextEnd(false);
+            }
+        }
+
+        /// <summary>After a "Kopieren" click the player goes straight back to writing; the draft is kept.</summary>
+        private void ReturnFocusToInput()
+        {
+            if (inputEnabled)
+            {
+                FocusInput();
             }
         }
 

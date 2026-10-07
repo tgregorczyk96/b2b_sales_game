@@ -2,9 +2,15 @@ using System;
 
 namespace SalesSim.Game
 {
-    /// <summary>The player's money within the running game session (not persisted).</summary>
+    /// <summary>The player's money. Persisted by the run loop through <see cref="IGameStateStore"/>.</summary>
     public sealed class PlayerWallet
     {
+        /// <param name="balance">A saved balance to continue with; negative values count as 0.</param>
+        public PlayerWallet(int balance = 0)
+        {
+            Balance = Math.Max(0, balance);
+        }
+
         public int Balance { get; private set; }
 
         public void Credit(int amount)

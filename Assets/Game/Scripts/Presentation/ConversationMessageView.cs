@@ -11,13 +11,14 @@ namespace SalesSim.Presentation
         Customer
     }
 
-    /// <summary>One chat bubble: sender label plus selectable, read-only message text.</summary>
+    /// <summary>One chat bubble: sender label, "Kopieren" button and selectable, read-only message text.</summary>
     public sealed class ConversationMessageView : MonoBehaviour
     {
         [SerializeField] private HorizontalLayoutGroup row;
         [SerializeField] private Image background;
         [SerializeField] private TMP_Text senderLabel;
         [SerializeField] private SelectableMessageText body;
+        [SerializeField] private CopyTextButton copyButton;
 
         public ConversationSender Sender { get; private set; }
 
@@ -26,6 +27,10 @@ namespace SalesSim.Presentation
         public string SenderLabel => senderLabel.text;
 
         public bool IsReadOnly => body.readOnly;
+
+        public CopyTextButton CopyButton => copyButton;
+
+        public SelectableMessageText Body => body;
 
         public void Show(ConversationSender sender, string message, Color bubbleColor, int indent)
         {
@@ -37,6 +42,7 @@ namespace SalesSim.Presentation
                 ? new RectOffset(indent, 0, 0, 0)
                 : new RectOffset(0, indent, 0, 0);
             body.SetMessage(message);
+            copyButton.Source = () => body.text;
         }
 
         /// <summary>The engine did not take this message (e.g. the request failed); it stays visible, marked as such.</summary>

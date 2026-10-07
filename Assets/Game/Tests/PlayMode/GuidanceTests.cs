@@ -129,6 +129,9 @@ namespace SalesSim.Tests.PlayMode
             Assert.That(guidance.IsInteractable, Is.True);
             Assert.That(send.interactable, Is.True);
             Assert.That(input.text, Is.EqualTo("Hallo"), "The draft survives the guidance.");
+            yield return null;
+            yield return null;
+            Assert.That(input.caretPosition, Is.EqualTo(input.text.Length), "Typing continues at the end of the draft.");
         }
 
         [UnityTest]

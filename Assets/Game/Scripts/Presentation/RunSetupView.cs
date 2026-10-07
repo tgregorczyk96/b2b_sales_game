@@ -94,13 +94,15 @@ namespace SalesSim.Presentation
         }
 
         /// <summary>Shows the setup; the seed field is empty (= random), the last run can be repeated.</summary>
-        public void Show(RunInfo lastRun)
+        public void Show(RunInfo lastRun, int balance = 0, int playedSeeds = 0)
         {
             seedInput.text = string.Empty;
             messageText.text = string.Empty;
-            lastRunText.text = lastRun == null
+            var last = lastRun == null
                 ? "Noch kein Run gespielt."
                 : $"Letzter Run: {lastRun.Difficulty} · Seed {lastRun.Seed.ToString(CultureInfo.InvariantCulture)}";
+            var seeds = playedSeeds == 1 ? "1 Seed gespielt" : $"{playedSeeds} Seeds gespielt";
+            lastRunText.text = $"{last}\nGuthaben: {RunResultView.Euro(balance)} · {seeds}";
             rerunButton.interactable = lastRun != null;
             overlay.SetActive(true);
         }

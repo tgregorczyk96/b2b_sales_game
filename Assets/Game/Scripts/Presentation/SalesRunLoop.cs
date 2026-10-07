@@ -10,8 +10,9 @@ namespace SalesSim.Presentation
     /// The game loop: run setup (difficulty, seed) → conversation → run ends → lead is priced → sold to the closer, or
     /// the same seed is trained again → back to setup. Pricing and selling live in <see cref="SalesSim.Game"/>; seeds,
     /// scenarios and difficulties come from the engine via <see cref="IScenarioSource"/>. A rerun of a seed is a
-    /// training run (<see cref="RunInfo.IsRerun"/>): evaluated as usual, never paid out. Wallet and played seeds live as
-    /// long as the scene (no persistence).
+    /// training run (<see cref="RunInfo.IsRerun"/>): evaluated as usual, never paid out. Wallet and run registry are the
+    /// runtime state; with an <see cref="IGameStateStore"/> they are loaded on <see cref="Configure"/> and saved whenever
+    /// a run starts (its seed counts as played from then on), ends (score) or a lead is sold.
     /// </summary>
     public sealed class SalesRunLoop : MonoBehaviour
     {
@@ -24,8 +25,9 @@ namespace SalesSim.Presentation
         [SerializeField] private TMP_Text runLabel;
         [SerializeField] private EconomySettings economy = new EconomySettings();
 
-        private readonly PlayerWallet wallet = new PlayerWallet();
-        private readonly RunRegistry runs = new RunRegistry();
+        private PlayerWallet wallet = new PlayerWallet();
+        private RunRegistry runs = new RunRegistry();
+        private IGameStateStore store;
         private ISalesGameSession session;
         private IScenarioSource scenarios;
         private PlayerProfile player;
@@ -64,12 +66,23 @@ namespace SalesSim.Presentation
             setupView.RandomSeedRequested -= OnRandomSeedRequested;
         }
 
-        /// <summary>Connects the loop to the engine and shows the run setup. Called once by the composition root.</summary>
-        public void Configure(ISalesGameSession salesSession, IScenarioSource scenarioSource, PlayerProfile playerProfile)
+        /// <summary>
+        /// Connects the loop to the engine, continues the saved game (if a store is given) and shows the run setup.
+        /// Called once by the composition root; tests call it again with their own session and store.
+        /// </summary>
+        public void Configure(
+            ISalesGameSession salesSession, IScenarioSource scenarioSource, PlayerProfile playerProfile, IGameStateStore gameStateStore = null)
         {
             session = salesSession;
             scenarios = scenarioSource;
             player = playerProfile;
+            store = gameStateStore;
+            var saved = store?.Load() ?? new SaveData();
+            wallet = new PlayerWallet(saved.balance);
+            runs = RunRegistry.Restore(saved);
+            CurrentRun = null;
+            currentLead = null;
+            UpdateBalance();
             setupView.SetDifficulties(scenarios.Difficulties);
             ShowSetup();
         }
@@ -95,6 +108,7 @@ namespace SalesSim.Presentation
             resultView.Hide();
             setupView.Hide();
             runLabel.text = RunResultView.RunSummary(run, 0f, null);
+            Save(); // from now on the seed is played, also if the game is closed mid-run
             conversation.Initialize(session, run.ScenarioId, player, run.Difficulty);
             return run;
         }
@@ -103,7 +117,7 @@ namespace SalesSim.Presentation
         {
             resultView.Hide();
             runLabel.text = string.Empty;
-            setupView.Show(runs.Last);
+            setupView.Show(runs.Last, wallet.Balance, runs.PlayedSeedCount);
         }
 
         private void OnNewRunRequested(string difficulty, string seedText)
@@ -139,6 +153,8 @@ namespace SalesSim.Presentation
                 runs.RecordScore(CurrentRun.Seed, evaluation.Score);
             }
 
+            Save();
+
             resultView.Show(currentLead, economy.closerShare, wallet.Balance, conversation.GuidanceUsage, CurrentRun, previousScore);
         }
 
@@ -150,8 +166,21 @@ namespace SalesSim.Presentation
             }
 
             currentLead.SellTo(wallet);
+            Save();
             resultView.Refresh(currentLead, wallet.Balance);
             UpdateBalance();
+        }
+
+        private void Save()
+        {
+            if (store == null)
+            {
+                return;
+            }
+
+            var data = new SaveData { balance = wallet.Balance };
+            runs.WriteTo(data);
+            store.Save(data);
         }
 
         private void UpdateBalance()

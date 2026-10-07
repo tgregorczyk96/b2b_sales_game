@@ -43,6 +43,9 @@ namespace SalesSim.Presentation
         /// <summary>The player pressed one of the guidance buttons.</summary>
         public event Action<GuidanceLevel> Requested;
 
+        /// <summary>Guidance was copied with a "Kopieren" button.</summary>
+        public event Action Copied;
+
         /// <summary>The panel as a whole is unlocked (no customer turn or guidance request running).</summary>
         public bool IsInteractable => interactable;
 
@@ -54,6 +57,13 @@ namespace SalesSim.Presentation
             hintButton.onClick.AddListener(() => Requested?.Invoke(GuidanceLevel.Hint));
             hintMoreButton.onClick.AddListener(() => Requested?.Invoke(GuidanceLevel.HintMore));
             exampleButton.onClick.AddListener(() => Requested?.Invoke(GuidanceLevel.Example));
+            foreach (var section in new[] { hint, hintMore, example })
+            {
+                var copied = section;
+                section.CopyButton.Source = () => copied.State == GuidanceSectionState.Shown ? copied.Body.text : string.Empty;
+                section.CopyButton.Copied += () => Copied?.Invoke();
+            }
+
             Clear();
         }
 
@@ -106,7 +116,8 @@ namespace SalesSim.Presentation
             foreach (var section in new[] { hint, hintMore, example })
             {
                 section.State = GuidanceSectionState.Hidden;
-                section.Body.text = string.Empty;
+                section.SetText(string.Empty);
+                section.CopyButton.gameObject.SetActive(false);
                 section.Root.SetActive(false);
             }
 
@@ -137,13 +148,20 @@ namespace SalesSim.Presentation
         /// <summary>The text currently shown for <paramref name="level"/>; empty when the section is hidden.</summary>
         public string TextOf(GuidanceLevel level) => SectionFor(level).Body.text;
 
+        /// <summary>The section's "Kopieren" button; only shown while the section holds finished guidance.</summary>
+        public CopyTextButton CopyButtonFor(GuidanceLevel level) => SectionFor(level).CopyButton;
+
+        /// <summary>The selectable, read-only text of the section (Ctrl+C on a selection works like in the chat).</summary>
+        public SelectableMessageText BodyFor(GuidanceLevel level) => SectionFor(level).Body;
+
         private void Set(GuidanceLevel level, GuidanceSectionState state, string text, Color color, FontStyles style)
         {
             var section = SectionFor(level);
             section.State = state;
-            section.Body.text = text;
-            section.Body.color = color;
-            section.Body.fontStyle = style;
+            section.SetText(text);
+            section.Body.textComponent.color = color;
+            section.Body.textComponent.fontStyle = style;
+            section.CopyButton.gameObject.SetActive(state == GuidanceSectionState.Shown);
             section.Root.SetActive(true);
             emptyHint.SetActive(false);
             revealTarget = (RectTransform)section.Root.transform;
@@ -175,7 +193,7 @@ namespace SalesSim.Presentation
 
             loadingElapsed = 0f;
             loadingFrame = (loadingFrame + 1) % LoadingFrames.Length;
-            example.Body.text = loadingText + " " + LoadingFrames[loadingFrame];
+            example.SetText(loadingText + " " + LoadingFrames[loadingFrame]);
         }
 
         /// <summary>Scrolls the section that just changed into view; repeated for a few frames until TMP has its final height.</summary>
@@ -216,11 +234,16 @@ namespace SalesSim.Presentation
         private sealed class Section
         {
             [SerializeField] private GameObject root;
-            [SerializeField] private TMP_Text body;
+            [SerializeField] private SelectableMessageText body;
+            [SerializeField] private CopyTextButton copyButton;
 
             public GameObject Root => root;
 
-            public TMP_Text Body => body;
+            public SelectableMessageText Body => body;
+
+            public CopyTextButton CopyButton => copyButton;
+
+            public void SetText(string text) => body.SetMessage(text);
 
             public GuidanceSectionState State { get; set; }
         }

@@ -182,7 +182,7 @@ namespace SalesSim.Tests.PlayMode
 
             Assert.That(setup.IsVisible, Is.True);
             Assert.That(setup.SeedText, Is.Empty, "A new run is random again unless a seed is typed.");
-            Assert.That(setup.LastRunText, Is.EqualTo("Letzter Run: Hard · Seed 1000"));
+            Assert.That(setup.LastRunText, Does.StartWith("Letzter Run: Hard · Seed 1000\n"));
             Assert.That(setup.RerunButton.interactable, Is.True);
 
             setup.DifficultyButton("Easy").onClick.Invoke();

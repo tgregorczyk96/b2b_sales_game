@@ -61,8 +61,9 @@ namespace SalesSim.Game
     }
 
     /// <summary>
-    /// The runs of the current game session (in memory only, not persisted): which seeds were played, the last run for
-    /// "Seed wiederholen", and the last lead score per seed for a small before/after comparison.
+    /// The runs of the game: which seeds were played, the last run for "Seed wiederholen", and the last lead score per
+    /// seed for a small before/after comparison. The runtime source of truth; the run loop restores it from the save
+    /// (<see cref="Restore"/>) and writes it back (<see cref="WriteTo"/>).
     /// </summary>
     /// <remarks>
     /// A seed counts as played at every difficulty: the engine generates the same origin for a seed regardless of the
@@ -95,5 +96,61 @@ namespace SalesSim.Game
         {
             lastScores[seed] = score;
         }
+
+        /// <summary>A registry continuing a saved game: played seeds stay played, so a replay is still a training run.</summary>
+        public static RunRegistry Restore(SaveData data)
+        {
+            var runs = new RunRegistry();
+            if (data == null)
+            {
+                return runs;
+            }
+
+            foreach (var seed in data.playedSeeds ?? new List<int>())
+            {
+                if (seed >= 0)
+                {
+                    runs.playedSeeds.Add(seed);
+                }
+            }
+
+            foreach (var entry in data.lastScores ?? new List<SaveData.SeedScore>())
+            {
+                if (entry != null && entry.seed >= 0)
+                {
+                    runs.lastScores[entry.seed] = entry.score;
+                }
+            }
+
+            runs.nextRunId = Math.Max(1, data.runsStarted + 1);
+            if (data.hasLastRun && data.lastRun != null && data.lastRun.seed >= 0)
+            {
+                runs.playedSeeds.Add(data.lastRun.seed);
+                runs.Last = new RunInfo(0, data.lastRun.seed, data.lastRun.difficulty, data.lastRun.scenarioId, isRerun: false);
+            }
+
+            return runs;
+        }
+
+        /// <summary>Writes the registry's part of the save (played seeds, last scores, last run, run counter).</summary>
+        public void WriteTo(SaveData data)
+        {
+            data.playedSeeds = new List<int>(playedSeeds);
+            data.playedSeeds.Sort();
+            data.lastScores = new List<SaveData.SeedScore>();
+            foreach (var pair in lastScores)
+            {
+                data.lastScores.Add(new SaveData.SeedScore { seed = pair.Key, score = pair.Value });
+            }
+
+            data.lastScores.Sort((a, b) => a.seed.CompareTo(b.seed));
+            data.runsStarted = nextRunId - 1;
+            data.hasLastRun = Last != null;
+            data.lastRun = Last == null
+                ? new SaveData.SavedRun()
+                : new SaveData.SavedRun { seed = Last.Seed, difficulty = Last.Difficulty, scenarioId = Last.ScenarioId };
+        }
+
+        public int PlayedSeedCount => playedSeeds.Count;
     }
 }

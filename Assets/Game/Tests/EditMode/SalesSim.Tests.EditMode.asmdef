@@ -6,7 +6,8 @@
         "UnityEditor.TestRunner",
         "SalesSim.Application",
         "SalesSim.EngineAdapter",
-        "SalesSim.Game"
+        "SalesSim.Game",
+        "SalesSim.Infrastructure"
     ],
     "includePlatforms": [
         "Editor"

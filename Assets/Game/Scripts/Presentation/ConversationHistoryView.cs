@@ -25,6 +25,9 @@ namespace SalesSim.Presentation
         private bool following = true;
         private float lastContentHeight;
 
+        /// <summary>A message was copied with its "Kopieren" button.</summary>
+        public event System.Action MessageCopied;
+
         public IReadOnlyList<ConversationMessageView> Messages => messages;
 
         public bool IsThinking => thinkingIndicator.IsVisible;
@@ -69,6 +72,7 @@ namespace SalesSim.Presentation
             var follow = IsNearBottom();
             var message = Instantiate(messagePrefab, content);
             message.Show(sender, text, color, bubbleIndent);
+            message.CopyButton.Copied += () => MessageCopied?.Invoke();
             messages.Add(message);
             if (thinkingIndicator.IsVisible)
             {

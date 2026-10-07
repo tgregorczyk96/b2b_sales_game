@@ -133,7 +133,11 @@ namespace SalesSim.Editor
             Debug.Log("[GuidanceUiBuilder] SalesTestScene guidance UI built.");
         }
 
-        private static (GameObject Root, TMP_Text Body) NewSection(string name, Transform parent, string title)
+        /// <summary>
+        /// One guidance level: title with "Kopieren" button, and the text as read-only selectable text (mouse selection +
+        /// Ctrl+C, like the chat). A plain TMP text cannot be selected, so guidance could not be copied before.
+        /// </summary>
+        private static (GameObject Root, SelectableMessageText Body, CopyTextButton Copy) NewSection(string name, Transform parent, string title)
         {
             var section = NewUi(name, parent);
             var layout = section.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -143,19 +147,19 @@ namespace SalesSim.Editor
             var heading = NewText("Title", section, 18f, TitleColor);
             heading.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             heading.text = title;
+            CopyUiParts.NewHeaderRow(section, heading, out var copy);
 
-            var body = NewText("Body", section, 24f, Color.white);
-            body.textWrappingMode = TextWrappingModes.Normal;
-            body.richText = false;
+            var body = CopyUiParts.NewSelectableText("Body", section, 24f, Color.white);
             section.gameObject.SetActive(false);
-            return (section.gameObject, body);
+            return (section.gameObject, body, copy);
         }
 
-        private static void AssignSection(SerializedObject so, string field, (GameObject Root, TMP_Text Body) section)
+        private static void AssignSection(SerializedObject so, string field, (GameObject Root, SelectableMessageText Body, CopyTextButton Copy) section)
         {
             var property = so.FindProperty(field);
             property.FindPropertyRelative("root").objectReferenceValue = section.Root;
             property.FindPropertyRelative("body").objectReferenceValue = section.Body;
+            property.FindPropertyRelative("copyButton").objectReferenceValue = section.Copy;
         }
 
         private static Button NewButton(string name, Transform parent, string label, Color color)

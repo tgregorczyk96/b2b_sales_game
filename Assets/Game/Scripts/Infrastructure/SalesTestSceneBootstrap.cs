@@ -9,10 +9,10 @@ namespace SalesSim.Infrastructure
 {
     /// <summary>
     /// Composition root of SalesTestScene: chooses the ISalesGameSession and IScenarioSource implementations and hands
-    /// them to the run loop, which starts with the run setup. Uses the real Sales Engine; its customer is played by
-    /// Anthropic when SALESSIM_ANTHROPIC_API_KEY is set (environment or the project's git-ignored .env), otherwise by the
-    /// engine's placeholder. Falls back to <see cref="NotConnectedSalesGameSession"/> (with an error in the console) when
-    /// the engine cannot be set up.
+    /// them to the run loop together with the savegame (<see cref="JsonFileGameStateStore"/>); the loop starts with the
+    /// run setup. Uses the real Sales Engine; its customer is played by Anthropic when SALESSIM_ANTHROPIC_API_KEY is set
+    /// (environment or the project's git-ignored .env), otherwise by the engine's placeholder. Falls back to
+    /// <see cref="NotConnectedSalesGameSession"/> (with an error in the console) when the engine cannot be set up.
     /// </summary>
     public sealed class SalesTestSceneBootstrap : MonoBehaviour
     {
@@ -27,7 +27,8 @@ namespace SalesSim.Infrastructure
         private void Start()
         {
             var (session, scenarios) = CreateEngine();
-            runLoop.Configure(session, scenarios, new PlayerProfile(playerName, playerCompany));
+            var save = JsonFileGameStateStore.ForGame(message => Debug.Log(message), message => Debug.LogWarning(message));
+            runLoop.Configure(session, scenarios, new PlayerProfile(playerName, playerCompany), save);
         }
 
         private (ISalesGameSession, IScenarioSource) CreateEngine()

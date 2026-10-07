@@ -105,6 +105,7 @@ namespace SalesSim.Editor
 
             var sender = NewText("Sender", bubble, 18f, SenderColor);
             sender.fontStyle = FontStyles.Bold;
+            CopyUiParts.NewHeaderRow(bubble, sender, out var copyButton);
 
             // Standard TMP input field layout: text area and text are stretched by anchors, no layout groups inside.
             // The input field itself reports the text's preferred height to the bubble (it is an ILayoutElement).
@@ -135,6 +136,7 @@ namespace SalesSim.Editor
             viewSo.FindProperty("background").objectReferenceValue = background;
             viewSo.FindProperty("senderLabel").objectReferenceValue = sender;
             viewSo.FindProperty("body").objectReferenceValue = body;
+            viewSo.FindProperty("copyButton").objectReferenceValue = copyButton;
             viewSo.ApplyModifiedPropertiesWithoutUndo();
 
             if (!AssetDatabase.IsValidFolder("Assets/Game/Prefabs"))

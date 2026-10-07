@@ -4,7 +4,8 @@
     "references": [
         "SalesSim.Application",
         "SalesSim.EngineAdapter",
-        "SalesSim.Presentation"
+        "SalesSim.Presentation",
+        "SalesSim.Game"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

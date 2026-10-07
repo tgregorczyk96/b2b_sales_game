@@ -9,6 +9,7 @@
         "SalesSim.Application",
         "SalesSim.Presentation",
         "SalesSim.Game",
+        "SalesSim.Infrastructure",
         "SalesSim.EngineAdapter"
     ],
     "includePlatforms": [],
