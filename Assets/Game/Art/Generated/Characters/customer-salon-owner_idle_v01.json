@@ -1,0 +1,21 @@
+{
+  "provider": "Black Forest Labs",
+  "model": "flux2_max",
+  "prompt": "Character portrait for a 2D business training game: a friendly hair salon owner in her early 40s, waist-up, facing the viewer in a slight three-quarter view, standing upright with arms relaxed at her sides, neutral attentive expression with a calm closed-mouth half smile, eyes looking at the viewer. She has shoulder-length wavy auburn hair with a side part, warm light skin, small silver stud earrings. She wears a charcoal grey stylist apron (#3A3F47) over a mustard yellow (#E3A72F) short-sleeve blouse. Modern clean 2D vector illustration style like a polished mobile game or editorial illustration: smooth flat colour shapes with soft cel shading, clean dark-brown outlines of even weight, natural adult proportions, semi-realistic, approachable and professional. Soft even studio lighting from the front. The whole figure is centered with the head in the upper third and some empty space above the hair, cropped at the waist at the bottom edge. Plain flat solid light grey background (#E6E9EE), completely uniform, no shadow, no props, no scenery.",
+  "seed": 72931,
+  "width": 1024,
+  "height": 1344,
+  "generatedAt": "2026-10-06",
+  "editedAfterGeneration": false,
+  "notes": "Base character. Picked from 2 text-to-image candidates (seed 41406 rejected: gradient background, arms cropped at the sides).",
+  "requestId": "0276edae-59c4-4ede-8592-4e5c5b146c64",
+  "derivation": "text-to-image (base character)",
+  "referenceRequestId": null,
+  "fluxParameters": {
+    "safety_tolerance": 2,
+    "output_format": "jpeg",
+    "interface": "BFL MCP (mcp.bfl.ai)"
+  },
+  "postProcessing": "Automated background removal (flat grey background keyed out by border flood fill + enclosed pockets, soft 1px alpha edge, halo decontamination). Canvas size unchanged so all states stay pixel-aligned. No manual paint-over.",
+  "characterState": "Idle"
+}

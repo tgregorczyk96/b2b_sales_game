@@ -5,9 +5,13 @@ namespace SalesSim.Application
     {
         public string ScenarioId { get; }
 
-        public SessionStartRequest(string scenarioId)
+        /// <summary>The player's own name and company, if known; <c>null</c> lets the engine phrase guidance without them.</summary>
+        public PlayerProfile Player { get; }
+
+        public SessionStartRequest(string scenarioId, PlayerProfile player = null)
         {
             ScenarioId = scenarioId ?? string.Empty;
+            Player = player;
         }
     }
 }

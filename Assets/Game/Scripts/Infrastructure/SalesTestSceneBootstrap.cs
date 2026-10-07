@@ -18,10 +18,14 @@ namespace SalesSim.Infrastructure
         [SerializeField] private SalesConversationController conversationController;
         [Tooltip("Origin scenario as '<generation pool>:<seed>'; interpreted by the Sales Engine.")]
         [SerializeField] private string scenarioId = "hair-salon:1406361028";
+        [Tooltip("The player's own name; the engine uses it e.g. for the introduction in example sentences.")]
+        [SerializeField] private string playerName = "Tomasz";
+        [Tooltip("The company/brand the player sells for.")]
+        [SerializeField] private string playerCompany = "tom-gre-it";
 
         private void Start()
         {
-            conversationController.Initialize(CreateSession(), scenarioId);
+            conversationController.Initialize(CreateSession(), scenarioId, new PlayerProfile(playerName, playerCompany));
         }
 
         private ISalesGameSession CreateSession()

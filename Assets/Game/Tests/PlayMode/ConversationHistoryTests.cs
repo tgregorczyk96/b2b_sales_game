@@ -128,10 +128,10 @@ namespace SalesSim.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator MessageText_CanBeSelectedAndCopied_ButNotEdited()
+        public IEnumerator MessageText_CannotBeEdited()
         {
-            Send("Bitte kopier mich");
-            session.Answer("Kopier mich auch");
+            Send("Bitte nicht ändern");
+            session.Answer("Mich auch nicht");
             yield return null;
 
             foreach (var message in history.Messages.Skip(1))
@@ -142,18 +142,41 @@ namespace SalesSim.Tests.PlayMode
 
                 body.ActivateInputField();
                 yield return null;
-                body.stringPosition = 0;
+                var before = body.text;
+                body.ProcessEvent(Event.KeyboardEvent("x"));
+                body.ProcessEvent(Event.KeyboardEvent("backspace"));
+                body.ProcessEvent(Event.KeyboardEvent("delete"));
+                body.ProcessEvent(Event.KeyboardEvent("^v"));
+                body.ProcessEvent(Event.KeyboardEvent("^x"));
+                Assert.That(body.text, Is.EqualTo(before), "Typing, deleting, cutting and pasting change nothing.");
+                body.DeactivateInputField();
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator MessageText_SelectionIsCopiedWithCtrlC()
+        {
+            // Needs the operating system clipboard; when another process holds it, the check cannot run here.
+            GUIUtility.systemCopyBuffer = "clipboard-probe";
+            if (GUIUtility.systemCopyBuffer != "clipboard-probe")
+            {
+                Assert.Ignore("The system clipboard is not accessible in this environment.");
+            }
+
+            Send("Bitte kopier mich");
+            session.Answer("Kopier mich auch");
+            yield return null;
+
+            foreach (var message in history.Messages.Skip(1))
+            {
+                var body = message.GetComponentInChildren<SelectableMessageText>();
+                body.ActivateInputField();
+                yield return null;
                 body.selectionStringAnchorPosition = 0;
                 body.selectionStringFocusPosition = body.text.Length;
                 GUIUtility.systemCopyBuffer = string.Empty;
                 body.ProcessEvent(Event.KeyboardEvent("^c"));
                 Assert.That(GUIUtility.systemCopyBuffer, Is.EqualTo(message.Text), "Ctrl+C copies the selection.");
-
-                var before = body.text;
-                body.ProcessEvent(Event.KeyboardEvent("x"));
-                body.ProcessEvent(Event.KeyboardEvent("backspace"));
-                body.ProcessEvent(Event.KeyboardEvent("^v"));
-                Assert.That(body.text, Is.EqualTo(before), "Typing, deleting and pasting change nothing.");
                 body.DeactivateInputField();
             }
         }
@@ -202,45 +225,6 @@ namespace SalesSim.Tests.PlayMode
         {
             input.text = text;
             send.onClick.Invoke();
-        }
-
-        /// <summary>Answers each turn only when the test says so.</summary>
-        private sealed class ScriptedSession : ISalesGameSession
-        {
-            private TaskCompletionSource<SalesSessionState> pending;
-
-            public SalesSessionState CurrentState { get; private set; } = SalesSessionState.Empty;
-
-            public int TurnsReceived { get; private set; }
-
-            public Task<SalesSessionState> StartSessionAsync(SessionStartRequest request, CancellationToken cancellationToken = default)
-            {
-                CurrentState = State("Guten Tag?", 40);
-                return Task.FromResult(CurrentState);
-            }
-
-            public Task<SalesSessionState> SendPlayerTurnAsync(PlayerTurn turn, CancellationToken cancellationToken = default)
-            {
-                TurnsReceived++;
-                pending = new TaskCompletionSource<SalesSessionState>();
-                return pending.Task;
-            }
-
-            public void Answer(string customerMessage, float trust = 40)
-            {
-                CurrentState = State(customerMessage, trust);
-                pending.SetResult(CurrentState);
-            }
-
-            public void Fail(Exception exception)
-            {
-                pending.SetException(exception);
-            }
-
-            private static SalesSessionState State(string customerMessage, float trust)
-            {
-                return new SalesSessionState("scripted", customerMessage, new SalesIndicators(trust, 50, 25, 70), "Opening", "Continue", false);
-            }
         }
     }
 }

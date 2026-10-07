@@ -3,6 +3,7 @@
     "rootNamespace": "SalesSim.Presentation",
     "references": [
         "SalesSim.Application",
+        "SalesSim.Game",
         "UnityEngine.UI",
         "Unity.TextMeshPro"
     ],

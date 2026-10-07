@@ -26,6 +26,23 @@ namespace SalesSim.Infrastructure
             return Task.FromResult(CurrentState);
         }
 
+        public Task<SalesSessionState> EndSessionAsync(CancellationToken cancellationToken = default)
+        {
+            CurrentState = new SalesSessionState("offline", string.Empty, SalesIndicators.None, NotConnected, NotConnected, true);
+            return Task.FromResult(CurrentState);
+        }
+
+        public Task<GuidanceResult> RequestGuidanceAsync(GuidanceLevel level, CancellationToken cancellationToken = default)
+        {
+            return Task.FromException<GuidanceResult>(
+                new GuidanceUnavailableException(GuidanceUnavailableReason.NotConnected, "The Sales Engine is not connected."));
+        }
+
+        public GuidanceAvailability GetGuidanceAvailability(GuidanceLevel level)
+        {
+            return GuidanceAvailability.NotConnected;
+        }
+
         private static SalesSessionState CreateState(string customerMessage)
         {
             return new SalesSessionState("offline", customerMessage, SalesIndicators.None, NotConnected, NotConnected, false);

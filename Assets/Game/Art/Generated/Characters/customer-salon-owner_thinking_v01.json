@@ -1,0 +1,21 @@
+{
+  "provider": "Black Forest Labs",
+  "model": "flux2_max",
+  "prompt": "Edit image 1: the woman is now thinking it over. Her eyes look up and to the side, her lips are closed and pressed slightly to one side, one eyebrow is slightly raised, and she rests the index finger and thumb of her right hand thoughtfully against her chin. Keep everything else in image 1 exactly the same: the same woman, face shape, auburn hair, silver stud earrings, mustard yellow blouse, charcoal grey apron, the same framing, crop, size and position, the same clean dark-brown outlines and flat cel-shaded illustration style, and the same plain flat uniform light grey background (#E6E9EE).",
+  "seed": 72931,
+  "width": 1024,
+  "height": 1344,
+  "generatedAt": "2026-10-06",
+  "editedAfterGeneration": false,
+  "notes": "",
+  "requestId": "5f342397-b582-478b-a0ec-7fb1d34b349e",
+  "derivation": "image edit of customer-salon-owner_idle_v01 (FLUX.2 [max], reference image 1 = base request)",
+  "referenceRequestId": "0276edae-59c4-4ede-8592-4e5c5b146c64",
+  "fluxParameters": {
+    "safety_tolerance": 2,
+    "output_format": "jpeg",
+    "interface": "BFL MCP (mcp.bfl.ai)"
+  },
+  "postProcessing": "Automated background removal (flat grey background keyed out by border flood fill + enclosed pockets, soft 1px alpha edge, halo decontamination). Canvas size unchanged so all states stay pixel-aligned. No manual paint-over.",
+  "characterState": "Thinking"
+}

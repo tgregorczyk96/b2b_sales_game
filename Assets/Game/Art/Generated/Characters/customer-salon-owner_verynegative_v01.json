@@ -1,0 +1,21 @@
+{
+  "provider": "Black Forest Labs",
+  "model": "flux2_max",
+  "prompt": "Edit image 1: the woman now clearly rejects the offer. She has her arms firmly crossed over the apron in front of her chest, her eyebrows are lowered in a clear frown, her mouth is pressed into a tight downturned line, and her head is pulled back slightly as she looks at the viewer with an annoyed, dismissive expression. Keep everything else in image 1 exactly the same: the same woman, face shape, auburn hair, silver stud earrings, mustard yellow blouse, charcoal grey apron, the same framing, crop, size and position, the same clean dark-brown outlines and flat cel-shaded illustration style, and the same plain flat uniform light grey background (#E6E9EE).",
+  "seed": 72931,
+  "width": 1024,
+  "height": 1344,
+  "generatedAt": "2026-10-06",
+  "editedAfterGeneration": false,
+  "notes": "",
+  "requestId": "74afd825-5a67-48c3-b998-813d75f0a516",
+  "derivation": "image edit of customer-salon-owner_idle_v01 (FLUX.2 [max], reference image 1 = base request)",
+  "referenceRequestId": "0276edae-59c4-4ede-8592-4e5c5b146c64",
+  "fluxParameters": {
+    "safety_tolerance": 2,
+    "output_format": "jpeg",
+    "interface": "BFL MCP (mcp.bfl.ai)"
+  },
+  "postProcessing": "Automated background removal (flat grey background keyed out by border flood fill + enclosed pockets, soft 1px alpha edge, halo decontamination). Canvas size unchanged so all states stay pixel-aligned. No manual paint-over.",
+  "characterState": "VeryNegative"
+}

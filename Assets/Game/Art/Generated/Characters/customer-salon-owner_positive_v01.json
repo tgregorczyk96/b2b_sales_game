@@ -1,0 +1,21 @@
+{
+  "provider": "Black Forest Labs",
+  "model": "flux2_max",
+  "prompt": "Edit image 1: the woman now shows a mild positive reaction, interested and pleased. She has a warm genuine closed-mouth smile with slightly raised cheeks, relaxed friendly eyes and a very slight head tilt. Keep everything else in image 1 exactly the same: the same woman, face shape, auburn hair, silver stud earrings, mustard yellow blouse, charcoal grey apron, the same body pose with arms relaxed, the same framing, crop, size and position, the same clean dark-brown outlines and flat cel-shaded illustration style, and the same plain flat uniform light grey background (#E6E9EE).",
+  "seed": 72931,
+  "width": 1024,
+  "height": 1344,
+  "generatedAt": "2026-10-06",
+  "editedAfterGeneration": false,
+  "notes": "Model rendered a slightly open smile instead of closed-mouth; kept, still reads as mild positive.",
+  "requestId": "37b72cc4-689a-463c-b780-b5dca295b2bc",
+  "derivation": "image edit of customer-salon-owner_idle_v01 (FLUX.2 [max], reference image 1 = base request)",
+  "referenceRequestId": "0276edae-59c4-4ede-8592-4e5c5b146c64",
+  "fluxParameters": {
+    "safety_tolerance": 2,
+    "output_format": "jpeg",
+    "interface": "BFL MCP (mcp.bfl.ai)"
+  },
+  "postProcessing": "Automated background removal (flat grey background keyed out by border flood fill + enclosed pockets, soft 1px alpha edge, halo decontamination). Canvas size unchanged so all states stay pixel-aligned. No manual paint-over.",
+  "characterState": "Positive"
+}
