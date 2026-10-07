@@ -16,7 +16,8 @@
     "overrideReferences": true,
     "precompiledReferences": [
         "nunit.framework.dll",
-        "SalesEngine.dll"
+        "SalesEngine.dll",
+        "SalesEngine.Content.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [

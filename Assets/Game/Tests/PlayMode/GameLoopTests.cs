@@ -43,7 +43,8 @@ namespace SalesSim.Tests.PlayMode
             end = GameObject.Find("EndConversationButton").GetComponent<Button>();
 
             session = new ScriptedSession();
-            controller.Initialize(session, "scripted");
+            loop.Configure(session, new ScriptedScenarioSource(), null);
+            loop.StartNewRun("Easy", 42);
             yield return null;
         }
 
@@ -131,7 +132,14 @@ namespace SalesSim.Tests.PlayMode
             result.NextRunButton.onClick.Invoke();
             yield return null;
             Assert.That(result.IsVisible, Is.False);
+            var setup = Object.FindAnyObjectByType<RunSetupView>();
+            Assert.That(setup.IsVisible, Is.True, "Back to the run setup.");
+            Assert.That(session.Starts, Is.EqualTo(1));
+
+            setup.NewRunButton.onClick.Invoke();
+            yield return null;
             Assert.That(session.Starts, Is.EqualTo(2), "A new run is started.");
+            Assert.That(setup.IsVisible, Is.False);
             Assert.That(history.Messages.Count, Is.EqualTo(1));
             Assert.That(input.interactable, Is.True);
             Assert.That(character.State, Is.EqualTo(CharacterVisualState.Idle));
@@ -150,6 +158,7 @@ namespace SalesSim.Tests.PlayMode
             Assert.That(Text("Value"), Does.Contain("0 €"));
 
             result.NextRunButton.onClick.Invoke();
+            Object.FindAnyObjectByType<RunSetupView>().NewRunButton.onClick.Invoke();
             yield return null;
             Assert.That(loop.Wallet.Balance, Is.EqualTo(0));
             Assert.That(session.Starts, Is.EqualTo(2));

@@ -117,11 +117,14 @@ namespace SalesSim.Editor
             input.onFocusSelectAll = false;
             EditorUtility.SetDirty(input);
 
-            // Keep the result overlay on top of everything.
-            var overlay = root.Find("ResultOverlay");
-            if (overlay != null)
+            // Keep the result and setup overlays on top of everything.
+            foreach (var name in new[] { "ResultOverlay", "SetupOverlay" })
             {
-                overlay.SetAsLastSibling();
+                var overlay = root.Find(name);
+                if (overlay != null)
+                {
+                    overlay.SetAsLastSibling();
+                }
             }
 
             EditorSceneManager.MarkSceneDirty(scene);

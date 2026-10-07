@@ -23,6 +23,7 @@ namespace SalesSim.Tests.PlayMode
         private ConversationHistoryView history;
         private GuidancePanelView guidance;
         private RunResultView result;
+        private SalesRunLoop loop;
         private TMP_InputField input;
         private Button send;
         private Button end;
@@ -37,12 +38,14 @@ namespace SalesSim.Tests.PlayMode
             history = Object.FindAnyObjectByType<ConversationHistoryView>();
             guidance = Object.FindAnyObjectByType<GuidancePanelView>();
             result = Object.FindAnyObjectByType<RunResultView>();
+            loop = Object.FindAnyObjectByType<SalesRunLoop>();
             input = GameObject.Find("PlayerInput").GetComponent<TMP_InputField>();
             send = GameObject.Find("SendButton").GetComponent<Button>();
             end = GameObject.Find("EndConversationButton").GetComponent<Button>();
 
             session = new ScriptedSession();
-            controller.Initialize(session, "scripted");
+            loop.Configure(session, new ScriptedScenarioSource(), null);
+            loop.StartNewRun("Easy", 42);
             yield return null;
         }
 
@@ -168,7 +171,7 @@ namespace SalesSim.Tests.PlayMode
         public IEnumerator ExampleWithoutAi_IsDisabledBeforeTheClick_WithANote()
         {
             session.Availability[GuidanceLevel.Example] = GuidanceAvailability.RequiresAi;
-            controller.Initialize(session, "scripted");
+            loop.StartNewRun("Easy", 43);
             yield return null;
 
             Assert.That(guidance.ButtonFor(GuidanceLevel.Example).interactable, Is.False);
@@ -238,6 +241,7 @@ namespace SalesSim.Tests.PlayMode
             Assert.That(text, Does.Not.Contain("Run ohne Hilfe"));
 
             result.NextRunButton.onClick.Invoke();
+            Object.FindAnyObjectByType<RunSetupView>().NewRunButton.onClick.Invoke();
             yield return null;
             Assert.That(controller.GuidanceUsage.Total, Is.EqualTo(0));
             Assert.That(guidance.StateOf(GuidanceLevel.Hint), Is.EqualTo(GuidanceSectionState.Hidden));

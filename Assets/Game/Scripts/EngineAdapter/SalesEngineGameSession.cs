@@ -134,9 +134,12 @@ namespace SalesSim.EngineAdapter
             cancellationToken.ThrowIfCancellationRequested();
 
             var (pool, seed) = ParseScenarioId(request.ScenarioId);
+            var runDifficulty = request.Difficulty.Length == 0 ? difficulty : DifficultyNamed(request.Difficulty);
             var origin = new ContentRepository(contentDirectory).LoadGenerator(pool).Generate(seed);
             var newEngine = createEngine();
-            var newSession = newEngine.StartScenario(origin.Scenario, difficulty);
+            var newSession = newEngine.StartScenario(origin.Scenario, runDifficulty);
+            log($"{LogPrefix}Run: {pool}:{seed} (generator v{origin.GeneratorVersion}, origin {origin.Source}, "
+                + $"customer {origin.Blocks.Customer}), difficulty {runDifficulty.Name}");
 
             engine = newEngine;
             session = newSession;
@@ -298,7 +301,23 @@ namespace SalesSim.EngineAdapter
             return new SalesIndicators(state.Trust, state.Openness, state.Interest, state.Patience);
         }
 
-        private static (string Pool, int Seed) ParseScenarioId(string scenarioId)
+        /// <summary>The engine's run difficulty presets, easiest first.</summary>
+        internal static readonly DifficultyProfile[] Difficulties = { DifficultyProfile.Easy, DifficultyProfile.Medium, DifficultyProfile.Hard };
+
+        private static DifficultyProfile DifficultyNamed(string name)
+        {
+            foreach (var preset in Difficulties)
+            {
+                if (string.Equals(preset.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return preset;
+                }
+            }
+
+            throw new ArgumentException($"Unknown difficulty '{name}'. Known: Easy, Medium, Hard.", nameof(name));
+        }
+
+        internal static (string Pool, int Seed) ParseScenarioId(string scenarioId)
         {
             var separator = scenarioId.LastIndexOf(':');
             if (separator > 0

@@ -24,7 +24,7 @@ namespace SalesSim.Tests.PlayMode
     /// </summary>
     public sealed class GuidanceDifficultyTests
     {
-        private const string ScenarioId = "hair-salon:1406361028";
+        private const int Seed = 1406361028;
         private const string ExampleSentence = "Guten Tag, hier ist Tomasz von tom-gre-it – haben Sie kurz zwei Minuten?";
 
         private static readonly GuidanceLevel[] Levels = { GuidanceLevel.Hint, GuidanceLevel.HintMore, GuidanceLevel.Example };
@@ -72,14 +72,22 @@ namespace SalesSim.Tests.PlayMode
 
         /// <summary>
         /// Shows the engine's availability before any click, presses every button (also the disabled ones), and checks
-        /// that only allowed guidance is shown and counted — in the panel and on the result screen.
+        /// that only allowed guidance is shown and counted — in the panel and on the result screen. The run is started
+        /// through the run setup: the difficulty picked there must be the one the engine applies.
         /// </summary>
         private IEnumerator PlayAt(DifficultyProfile difficulty)
         {
             var generator = new FixedExampleGenerator();
-            var session = new SalesEngineGameSession(ContentDirectory, () => new SalesSimulationEngine(), difficulty, generator);
-            controller.Initialize(session, ScenarioId, new PlayerProfile("Tomasz", "tom-gre-it"));
+            // The session's own default is Easy: only the setup's choice can make it Medium or Hard.
+            var session = new SalesEngineGameSession(ContentDirectory, () => new SalesSimulationEngine(), DifficultyProfile.Easy, generator);
+            var loop = Object.FindAnyObjectByType<SalesRunLoop>();
+            var setup = Object.FindAnyObjectByType<RunSetupView>();
+            loop.Configure(session, new EngineScenarioSource(ContentDirectory), new PlayerProfile("Tomasz", "tom-gre-it"));
+            setup.DifficultyButton(difficulty.Name).onClick.Invoke();
+            setup.SeedText = Seed.ToString();
+            setup.NewRunButton.onClick.Invoke();
             yield return null;
+            Assert.That(loop.CurrentRun.Difficulty, Is.EqualTo(difficulty.Name));
 
             foreach (var level in Levels)
             {
@@ -124,6 +132,8 @@ namespace SalesSim.Tests.PlayMode
             Assert.That(summary, Does.Contain($"Mehr Hinweise: {controller.GuidanceUsage.HintMoreCount}\n"));
             Assert.That(summary, Does.Contain($"Beispiele: {controller.GuidanceUsage.ExampleCount}"));
             Assert.That(summary.Contains("Run ohne Hilfe"), Is.EqualTo(allowedCount == 0));
+            var runText = GameObject.Find("ResultOverlay").transform.Find("Panel/Run").GetComponent<TMP_Text>().text;
+            Assert.That(runText, Is.EqualTo($"{difficulty.Name} · Seed {Seed} · Erster Run"));
         }
 
         private string Label(GuidanceLevel level) => guidance.ButtonFor(level).GetComponentInChildren<TMP_Text>().text;

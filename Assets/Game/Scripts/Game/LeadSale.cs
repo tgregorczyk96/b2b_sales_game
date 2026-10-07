@@ -21,28 +21,39 @@ namespace SalesSim.Game
     /// <summary>
     /// One lead from a finished run that can be handed to the closer exactly once. The closer is a fixed mechanism
     /// (keeps its share, see <see cref="EconomySettings.closerShare"/>), not an NPC.
+    /// A lead from a training run (rerun of a known seed) is evaluated the same way but can never be sold.
     /// </summary>
     public sealed class LeadSale
     {
-        public LeadSale(LeadEvaluation evaluation)
+        /// <param name="isTraining">A rerun: the lead is shown, but there is no payout.</param>
+        public LeadSale(LeadEvaluation evaluation, bool isTraining = false)
         {
             Evaluation = evaluation ?? throw new ArgumentNullException(nameof(evaluation));
+            IsTraining = isTraining;
         }
 
         public LeadEvaluation Evaluation { get; }
 
         public bool IsSold { get; private set; }
 
-        public bool CanSell => !IsSold && Evaluation.IsSellable;
+        /// <summary>From a training run: never sold, no payout.</summary>
+        public bool IsTraining { get; }
+
+        public bool CanSell => !IsTraining && !IsSold && Evaluation.IsSellable;
 
         /// <summary>Hands the lead to the closer and credits the player's payout.</summary>
         /// <returns>The credited payout.</returns>
-        /// <exception cref="InvalidOperationException">Already sold, or worthless.</exception>
+        /// <exception cref="InvalidOperationException">A training lead, already sold, or worthless.</exception>
         public int SellTo(PlayerWallet wallet)
         {
             if (wallet == null)
             {
                 throw new ArgumentNullException(nameof(wallet));
+            }
+
+            if (IsTraining)
+            {
+                throw new InvalidOperationException("A training run pays nothing; its lead cannot be sold.");
             }
 
             if (IsSold)

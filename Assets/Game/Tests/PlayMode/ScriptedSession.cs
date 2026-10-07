@@ -39,9 +39,13 @@ namespace SalesSim.Tests.PlayMode
             [GuidanceLevel.Example] = GuidanceAvailability.Available,
         };
 
+        /// <summary>The request of the latest start (scenario id, player, difficulty).</summary>
+        public SessionStartRequest LastStart { get; private set; }
+
         public Task<SalesSessionState> StartSessionAsync(SessionStartRequest request, CancellationToken cancellationToken = default)
         {
             Starts++;
+            LastStart = request;
             CurrentState = new SalesSessionState("scripted", "Guten Tag?", Start, "Opening", string.Empty, false);
             return Task.FromResult(CurrentState);
         }

@@ -29,8 +29,6 @@ namespace SalesSim.Presentation
         [SerializeField] private float speakingSeconds = 0.6f;
 
         private ISalesGameSession session;
-        private string scenarioId = string.Empty;
-        private PlayerProfile player;
         private Coroutine thinkingRoutine;
         private bool turnInProgress;
         private bool conversationOver;
@@ -68,12 +66,14 @@ namespace SalesSim.Presentation
             guidance.Requested -= OnGuidanceRequested;
         }
 
+        /// <summary>Starts a fresh conversation (one run) on <paramref name="salesSession"/>.</summary>
+        /// <param name="scenario">The opaque scenario id, see <see cref="IScenarioSource.ScenarioIdFor"/>.</param>
         /// <param name="playerProfile">The player's own name and company for the engine; <c>null</c> without.</param>
-        public async void Initialize(ISalesGameSession salesSession, string scenario, PlayerProfile playerProfile = null)
+        /// <param name="difficulty">One of the engine's difficulty names; <c>null</c> uses the session's default.</param>
+        public async void Initialize(
+            ISalesGameSession salesSession, string scenario, PlayerProfile playerProfile = null, string difficulty = null)
         {
             session = salesSession ?? throw new ArgumentNullException(nameof(salesSession));
-            scenarioId = scenario ?? string.Empty;
-            player = playerProfile;
             conversationOver = false;
             turnInProgress = false;
             guidanceInProgress = false;
@@ -88,7 +88,8 @@ namespace SalesSim.Presentation
 
             try
             {
-                var state = await session.StartSessionAsync(new SessionStartRequest(scenarioId, player), destroyCancellationToken);
+                var request = new SessionStartRequest(scenario, playerProfile, difficulty);
+                var state = await session.StartSessionAsync(request, destroyCancellationToken);
                 Render(state);
             }
             catch (OperationCanceledException)
@@ -97,15 +98,6 @@ namespace SalesSim.Presentation
             catch (Exception exception)
             {
                 Debug.LogException(exception, this);
-            }
-        }
-
-        /// <summary>Starts a fresh conversation on the same session and scenario.</summary>
-        public void StartNextRun()
-        {
-            if (session != null)
-            {
-                Initialize(session, scenarioId, player);
             }
         }
 
