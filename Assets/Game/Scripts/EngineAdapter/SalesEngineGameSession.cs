@@ -100,7 +100,8 @@ namespace SalesSim.EngineAdapter
             var trace = log == null ? null : new Action<string>(line => log(LogPrefix + line));
             var httpClient = httpHandler == null ? SharedHttpClient : new HttpClient(httpHandler) { Timeout = Timeout.InfiniteTimeSpan };
             var client = new AnthropicMessagesClient(httpClient, options, trace);
-            log?.Invoke($"{LogPrefix}Customer: Anthropic LLM (model {options.Model}, timeout {options.Timeout.TotalSeconds:0}s)");
+            log?.Invoke($"{LogPrefix}Customer: Anthropic LLM (model {options.Model}, timeout {options.Timeout.TotalSeconds:0}s, "
+                        + $"workspace {options.WorkspaceId ?? "from the key"})");
             return new SalesEngineGameSession(
                 contentDirectory,
                 () => new SalesSimulationEngine(
@@ -180,7 +181,7 @@ namespace SalesSim.EngineAdapter
                 log($"{LogPrefix}Turn failed: {cause.GetType().Name}: {cause.Message}");
                 log($"{LogPrefix}Fallback used: no");
                 log($"{LogPrefix}Fallback reason: - (turn not recorded; it can be sent again)");
-                throw;
+                throw new SalesTurnFailedException(FailureOf(cause), cause.Message, exception);
             }
 
             log($"{LogPrefix}Fallback used: {(UsesFallbackCustomer ? "yes" : "no")}");
@@ -294,6 +295,35 @@ namespace SalesSim.EngineAdapter
         {
             var current = session.ClosingOutcome.Current;
             return current == null ? string.Empty : current.Kind.ToString();
+        }
+
+        /// <summary>The engine's failure as the game's reason; the engine message stays the (key-free) exception message.</summary>
+        internal static SalesTurnFailure FailureOf(Exception cause)
+        {
+            switch (cause)
+            {
+                case LlmProviderException provider:
+                    switch (provider.Kind)
+                    {
+                        case LlmProviderErrorKind.Authentication: return SalesTurnFailure.Authentication;
+                        case LlmProviderErrorKind.RateLimited: return SalesTurnFailure.RateLimited;
+                        case LlmProviderErrorKind.QuotaExceeded: return SalesTurnFailure.QuotaExceeded;
+                        case LlmProviderErrorKind.Network: return SalesTurnFailure.Network;
+                        case LlmProviderErrorKind.ServerError: return SalesTurnFailure.ServiceUnavailable;
+                        case LlmProviderErrorKind.BadRequest:
+                            return provider.Message.IndexOf(LlmOptions.AnthropicWorkspaceIdVariable, StringComparison.Ordinal) >= 0
+                                ? SalesTurnFailure.WorkspaceRequired
+                                : SalesTurnFailure.BadRequest;
+                        default: return SalesTurnFailure.InvalidAnswer;
+                    }
+
+                case TimeoutException _:
+                    return SalesTurnFailure.Timeout;
+                case InvalidLlmResponseException _:
+                    return SalesTurnFailure.InvalidAnswer;
+                default:
+                    return SalesTurnFailure.Unknown;
+            }
         }
 
         private static SalesIndicators ToIndicators(CustomerState state)

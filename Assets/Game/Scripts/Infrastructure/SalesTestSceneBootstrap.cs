@@ -61,6 +61,9 @@ namespace SalesSim.Infrastructure
             {
                 var contentDirectory = Path.Combine(UnityEngine.Application.streamingAssetsPath, "SalesEngine", "content");
                 var settings = LoadSettings();
+                // Read fresh on every Play/start, so a new key in .env is used after a restart. The values are never logged.
+                Debug.Log($"{SalesEngineGameSession.LogPrefix}Settings: SALESSIM_ANTHROPIC_API_KEY from {settings.SourceOf("SALESSIM_ANTHROPIC_API_KEY")}, "
+                          + $"SALESSIM_ANTHROPIC_WORKSPACE_ID from {settings.SourceOf("SALESSIM_ANTHROPIC_WORKSPACE_ID")}");
                 var session = SalesEngineGameSession.Create(contentDirectory, settings.Get, message => Debug.Log(message));
                 var scenarios = new EngineScenarioSource(contentDirectory, generationPool);
                 // The seed window takes seconds to build; do it while the player looks at the setup.

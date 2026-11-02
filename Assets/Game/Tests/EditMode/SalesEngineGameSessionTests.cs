@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using SalesEngine.AI;
 using SalesEngine.Customers;
 using SalesEngine.Difficulty;
 using SalesEngine.Training;
@@ -89,12 +90,124 @@ namespace SalesSim.Tests.EditMode
             var session = Create(http, logs);
             var started = await session.StartSessionAsync(new SessionStartRequest(ScenarioId));
 
-            Assert.ThrowsAsync<CustomerSimulationFailedException>(() => session.SendPlayerTurnAsync(new PlayerTurn("Hallo")));
+            Assert.ThrowsAsync<SalesTurnFailedException>(() => session.SendPlayerTurnAsync(new PlayerTurn("Hallo")));
 
             Assert.That(session.CurrentState, Is.SameAs(started));
             Assert.That(logs, Does.Contain("[SalesClient] Status: 500"));
             Assert.That(logs, Does.Contain("[SalesClient] Fallback used: no"));
             Assert.That(logs.Any(line => line.StartsWith("[SalesClient] Turn failed: LlmProviderException", StringComparison.Ordinal)), Is.True);
+        }
+
+        // The answer Anthropic gave the game on 2026-11-02 for the new, organization-wide key (no workspace header sent).
+        private const string WorkspaceRequiredBody =
+            "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"This API key is not scoped to a workspace, "
+            + "so this request must include the anthropic-workspace-id header with the ID of the workspace to use. Add the header, "
+            + "or use an API key that is scoped to a workspace.\"},\"request_id\":\"req_011WS\"}";
+
+        [Test]
+        public async Task KeyWithoutWorkspace_FailsTheTurn_AsWorkspaceRequired_AndKeepsTheState()
+        {
+            var logs = new List<string>();
+            var session = Create(new ScriptedHandler(Raw(HttpStatusCode.BadRequest, WorkspaceRequiredBody)), logs);
+            var started = await session.StartSessionAsync(new SessionStartRequest(ScenarioId));
+
+            var failure = await FailedTurn(session);
+
+            Assert.That(failure.Failure, Is.EqualTo(SalesTurnFailure.WorkspaceRequired));
+            Assert.That(failure.Message, Does.Contain("SALESSIM_ANTHROPIC_WORKSPACE_ID"));
+            Assert.That(failure.IsRetryable, Is.False);
+            Assert.That(session.CurrentState, Is.SameAs(started));
+            Assert.That(string.Join("\n", logs), Does.Not.Contain(FakeKey));
+        }
+
+        [Test]
+        public async Task WorkspaceSetting_IsSentAsHeader_AndTheTurnSucceeds()
+        {
+            var http = new ScriptedHandler(Message(ValidCustomerAnswer), Status(HttpStatusCode.InternalServerError));
+            var logs = new List<string>();
+            var session = Create(http, logs, ("SALESSIM_ANTHROPIC_WORKSPACE_ID", "wrkspc_01JwQvzr7rXLA5AGx3HKfFUJ"));
+
+            await session.StartSessionAsync(new SessionStartRequest(ScenarioId));
+            var state = await session.SendPlayerTurnAsync(new PlayerTurn("Guten Tag, haben Sie kurz Zeit?"));
+
+            Assert.That(http.Requests[0].Headers.GetValues("anthropic-workspace-id").Single(), Is.EqualTo("wrkspc_01JwQvzr7rXLA5AGx3HKfFUJ"));
+            Assert.That(state.CustomerMessage, Is.EqualTo(LlmUtterance));
+            Assert.That(logs.Any(line => line.Contains("workspace wrkspc_01JwQvzr7rXLA5AGx3HKfFUJ")), Is.True);
+        }
+
+        [Test]
+        public async Task WithoutWorkspaceSetting_NoWorkspaceHeaderIsSent()
+        {
+            var http = new ScriptedHandler(Message(ValidCustomerAnswer), Status(HttpStatusCode.InternalServerError));
+            var session = Create(http, new List<string>());
+
+            await session.StartSessionAsync(new SessionStartRequest(ScenarioId));
+            await session.SendPlayerTurnAsync(new PlayerTurn("Guten Tag"));
+
+            Assert.That(http.Requests[0].Headers.Contains("anthropic-workspace-id"), Is.False);
+        }
+
+        [Test]
+        public void InvalidWorkspaceSetting_IsAConfigurationError()
+        {
+            Assert.Throws<AiConfigurationException>(() =>
+                Create(new ScriptedHandler(), new List<string>(), ("SALESSIM_ANTHROPIC_WORKSPACE_ID", "01Jw-not-a-workspace")));
+        }
+
+        [TestCase(HttpStatusCode.Unauthorized)]
+        [TestCase(HttpStatusCode.Forbidden)]
+        public async Task RejectedOrExpiredKey_FailsTheTurn_AsAuthentication(HttpStatusCode status)
+        {
+            var body = "{\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"invalid x-api-key " + FakeKey + "\"}}";
+            var logs = new List<string>();
+            var session = Create(new ScriptedHandler(Raw(status, body)), logs);
+            var started = await session.StartSessionAsync(new SessionStartRequest(ScenarioId));
+
+            var failure = await FailedTurn(session);
+
+            Assert.That(failure.Failure, Is.EqualTo(SalesTurnFailure.Authentication));
+            Assert.That(failure.Message, Does.Not.Contain(FakeKey));
+            Assert.That(string.Join("\n", logs), Does.Not.Contain(FakeKey));
+            Assert.That(session.CurrentState, Is.SameAs(started));
+        }
+
+        [Test]
+        public async Task ApiTimeout_FailsTheTurn_AsTimeout()
+        {
+            var session = Create(new HangingHandler(), new List<string>(), ("SALESSIM_AI_TIMEOUT_SECONDS", "1"));
+            var started = await session.StartSessionAsync(new SessionStartRequest(ScenarioId));
+
+            var failure = await FailedTurn(session);
+
+            Assert.That(failure.Failure, Is.EqualTo(SalesTurnFailure.Timeout));
+            Assert.That(failure.IsRetryable, Is.True);
+            Assert.That(session.CurrentState, Is.SameAs(started));
+        }
+
+        [Test]
+        public async Task NetworkError_FailsTheTurn_AsNetwork()
+        {
+            var session = Create(new UnreachableHandler(), new List<string>());
+            var started = await session.StartSessionAsync(new SessionStartRequest(ScenarioId));
+
+            var failure = await FailedTurn(session);
+
+            Assert.That(failure.Failure, Is.EqualTo(SalesTurnFailure.Network));
+            Assert.That(session.CurrentState, Is.SameAs(started));
+        }
+
+        [Test]
+        public async Task FailedTurn_CanBeSentAgain_AndThenSucceeds()
+        {
+            var http = new ScriptedHandler(Raw(HttpStatusCode.BadRequest, WorkspaceRequiredBody), Message(ValidCustomerAnswer),
+                Status(HttpStatusCode.InternalServerError));
+            var session = Create(http, new List<string>());
+            await session.StartSessionAsync(new SessionStartRequest(ScenarioId));
+
+            await FailedTurn(session);
+            var state = await session.SendPlayerTurnAsync(new PlayerTurn("Hallo"));
+
+            Assert.That(state.CustomerMessage, Is.EqualTo(LlmUtterance), "The failed turn was not recorded, the retry is a normal turn.");
         }
 
         [Test]
@@ -105,7 +218,7 @@ namespace SalesSim.Tests.EditMode
             var session = Create(http, logs);
             var started = await session.StartSessionAsync(new SessionStartRequest(ScenarioId));
 
-            Assert.ThrowsAsync<CustomerSimulationFailedException>(() => session.SendPlayerTurnAsync(new PlayerTurn("Hallo")));
+            Assert.ThrowsAsync<SalesTurnFailedException>(() => session.SendPlayerTurnAsync(new PlayerTurn("Hallo")));
 
             Assert.That(session.CurrentState, Is.SameAs(started));
             Assert.That(logs, Does.Contain("[SalesClient] Deserialization successful: no (InvalidResponse)"));
@@ -120,7 +233,7 @@ namespace SalesSim.Tests.EditMode
             var session = Create(http, logs);
             var started = await session.StartSessionAsync(new SessionStartRequest(ScenarioId));
 
-            Assert.ThrowsAsync<CustomerSimulationFailedException>(() => session.SendPlayerTurnAsync(new PlayerTurn("Hallo")));
+            Assert.ThrowsAsync<SalesTurnFailedException>(() => session.SendPlayerTurnAsync(new PlayerTurn("Hallo")));
 
             Assert.That(session.CurrentState, Is.SameAs(started));
             Assert.That(logs, Does.Contain("[SalesClient] Deserialization successful: no (customer answer does not match the schema)"));
@@ -152,7 +265,7 @@ namespace SalesSim.Tests.EditMode
             var session = Create(http, logs);
             await session.StartSessionAsync(new SessionStartRequest(ScenarioId));
 
-            Assert.ThrowsAsync<CustomerSimulationFailedException>(() => session.SendPlayerTurnAsync(new PlayerTurn("Hallo")));
+            Assert.ThrowsAsync<SalesTurnFailedException>(() => session.SendPlayerTurnAsync(new PlayerTurn("Hallo")));
 
             Assert.That(logs, Is.Not.Empty);
             Assert.That(logs.Any(line => line.Contains(FakeKey)), Is.False);
@@ -403,6 +516,50 @@ namespace SalesSim.Tests.EditMode
         {
             return SalesEngineGameSession.Create(
                 ContentDirectory, name => name == "SALESSIM_ANTHROPIC_API_KEY" ? FakeKey : null, logs.Add, http);
+        }
+
+        private static SalesEngineGameSession Create(HttpMessageHandler http, List<string> logs, params (string Name, string Value)[] settings)
+        {
+            var values = settings.ToDictionary(s => s.Name, s => s.Value);
+            values["SALESSIM_ANTHROPIC_API_KEY"] = FakeKey;
+            return SalesEngineGameSession.Create(ContentDirectory, name => values.TryGetValue(name, out var v) ? v : null, logs.Add, http);
+        }
+
+        /// <summary>
+        /// Awaits the failing turn instead of Assert.ThrowsAsync: Unity's NUnit blocks the main thread there, and the
+        /// adapter's continuation (a real asynchronous wait, e.g. a timeout) has to come back to it.
+        /// </summary>
+        private static async Task<SalesTurnFailedException> FailedTurn(SalesEngineGameSession session)
+        {
+            try
+            {
+                await session.SendPlayerTurnAsync(new PlayerTurn("Hallo"));
+            }
+            catch (SalesTurnFailedException exception)
+            {
+                return exception;
+            }
+
+            Assert.Fail("The turn was expected to fail.");
+            return null;
+        }
+
+        /// <summary>Never answers; only the request's cancellation (the engine's timeout) ends it.</summary>
+        private sealed class HangingHandler : HttpMessageHandler
+        {
+            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                throw new InvalidOperationException("unreachable");
+            }
+        }
+
+        private sealed class UnreachableHandler : HttpMessageHandler
+        {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                throw new HttpRequestException("No such host is known.");
+            }
         }
 
         private static Func<HttpResponseMessage> Message(string text)

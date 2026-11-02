@@ -8,7 +8,10 @@ namespace SalesSim.Presentation
     public enum ConversationSender
     {
         Player,
-        Customer
+        Customer,
+
+        /// <summary>A note from the game itself (e.g. why the customer could not answer); never part of the conversation.</summary>
+        Notice
     }
 
     /// <summary>One chat bubble: sender label, "Kopieren" button and selectable, read-only message text.</summary>
@@ -35,7 +38,7 @@ namespace SalesSim.Presentation
         public void Show(ConversationSender sender, string message, Color bubbleColor, int indent)
         {
             Sender = sender;
-            senderLabel.text = sender == ConversationSender.Player ? "Du" : "Kunde";
+            senderLabel.text = sender == ConversationSender.Player ? "Du" : sender == ConversationSender.Customer ? "Kunde" : "Hinweis";
             senderLabel.alignment = sender == ConversationSender.Player ? TextAlignmentOptions.Right : TextAlignmentOptions.Left;
             background.color = bubbleColor;
             row.padding = sender == ConversationSender.Player

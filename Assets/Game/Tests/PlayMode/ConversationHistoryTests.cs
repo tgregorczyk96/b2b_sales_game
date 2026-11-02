@@ -117,10 +117,13 @@ namespace SalesSim.Tests.PlayMode
             session.Fail(new InvalidOperationException("scripted failure"));
             yield return null;
 
-            Assert.That(history.Messages.Count, Is.EqualTo(2));
-            Assert.That(history.Messages.Last().Sender, Is.EqualTo(ConversationSender.Player));
-            Assert.That(history.Messages.Last().Text, Is.EqualTo("Hallo"));
-            Assert.That(history.Messages.Last().SenderLabel, Does.Contain("nicht zugestellt"));
+            // Opening, the undelivered player line, and the notice why (no customer line is invented).
+            Assert.That(history.Messages.Count, Is.EqualTo(3));
+            Assert.That(history.Messages.Count(m => m.Sender == ConversationSender.Customer), Is.EqualTo(1));
+            Assert.That(history.Messages[1].Sender, Is.EqualTo(ConversationSender.Player));
+            Assert.That(history.Messages[1].Text, Is.EqualTo("Hallo"));
+            Assert.That(history.Messages[1].SenderLabel, Does.Contain("nicht zugestellt"));
+            Assert.That(history.Messages.Last().Sender, Is.EqualTo(ConversationSender.Notice));
             Assert.That(history.IsThinking, Is.False);
             Assert.That(input.interactable, Is.True);
             Assert.That(send.interactable, Is.True);

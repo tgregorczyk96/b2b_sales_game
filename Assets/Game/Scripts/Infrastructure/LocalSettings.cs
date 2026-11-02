@@ -39,6 +39,20 @@ namespace SalesSim.Infrastructure
             return new LocalSettings(values);
         }
 
+        /// <summary>
+        /// Where <paramref name="name"/> comes from: "environment" (wins over the file), ".env", or "not set". For diagnostics
+        /// only; the value itself is never part of it.
+        /// </summary>
+        public string SourceOf(string name)
+        {
+            if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name)))
+            {
+                return fileValues.ContainsKey(name) ? "environment (overrides .env)" : "environment";
+            }
+
+            return fileValues.TryGetValue(name, out var fileValue) && fileValue.Length > 0 ? ".env" : "not set";
+        }
+
         public string Get(string name)
         {
             var value = Environment.GetEnvironmentVariable(name);

@@ -1,7 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using SalesSim.Application;
+using SalesSim.EngineAdapter;
+using SalesSim.Infrastructure;
 using SalesSim.Presentation;
 using TMPro;
 using UnityEngine;
@@ -47,10 +51,20 @@ namespace SalesSim.Tests.PlayMode
         public IEnumerator RealEngine_TwoTurns_ShowInHistory_WithThinkingAndEngineState()
         {
             yield return SceneManager.LoadSceneAsync("SalesTestScene");
+            yield return null;
 
             var input = Find<TMP_InputField>("PlayerInput");
             var send = Find<Button>("SendButton");
             var history = Object.FindAnyObjectByType<ConversationHistoryView>();
+
+            // The game starts at the run setup. Same engine session as the bootstrap builds (real engine, key from
+            // environment / .env), but without a savegame, so the smoke test never touches the player's progress.
+            var contentDirectory = Path.Combine(UnityEngine.Application.streamingAssetsPath, "SalesEngine", "content");
+            var settings = LocalSettings.Load(Path.Combine(Path.GetDirectoryName(UnityEngine.Application.dataPath), ".env"));
+            var session = SalesEngineGameSession.Create(contentDirectory, settings.Get, message => Debug.Log(message));
+            var loop = Object.FindAnyObjectByType<SalesRunLoop>();
+            loop.Configure(session, new EngineScenarioSource(contentDirectory), new PlayerProfile("Max Berger", "Webwerk"));
+            loop.StartNewRun("Easy", 1406361028);
 
             yield return WaitUntil(() => input.interactable && history.Messages.Count == 1, "the session to start");
             Assert.That(history.Messages[0].Sender, Is.EqualTo(ConversationSender.Customer));
@@ -73,7 +87,9 @@ namespace SalesSim.Tests.PlayMode
                 yield return WaitUntil(() => history.Messages.Count == countBefore + 2, "the customer's reply");
                 var waited = Time.realtimeSinceStartup - started;
 
-                Assert.That(history.Messages.Last().Sender, Is.EqualTo(ConversationSender.Customer));
+                // A failed reply shows a notice instead: report its text, which says what is wrong (key, workspace, ...).
+                Assert.That(history.Messages.Last().Sender, Is.EqualTo(ConversationSender.Customer),
+                    $"No customer reply. The game says: \"{history.Messages.Last().Text}\"");
                 Assert.That(history.IsThinking, Is.False, "Thinking indicator is gone after the reply.");
                 Assert.That(send.interactable, Is.True);
                 Debug.Log($"[Smoke] Du: \"{sentence}\"");

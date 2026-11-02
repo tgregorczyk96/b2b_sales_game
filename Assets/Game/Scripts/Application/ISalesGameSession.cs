@@ -15,6 +15,7 @@ namespace SalesSim.Application
 
         Task<SalesSessionState> StartSessionAsync(SessionStartRequest request, CancellationToken cancellationToken = default);
 
+        /// <exception cref="SalesTurnFailedException">The customer could not answer; the turn was not taken and can be sent again.</exception>
         Task<SalesSessionState> SendPlayerTurnAsync(PlayerTurn turn, CancellationToken cancellationToken = default);
 
         /// <summary>The player ends the running conversation; the engine decides how it ended. Returns the final state.</summary>

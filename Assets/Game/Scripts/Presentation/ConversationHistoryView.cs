@@ -16,6 +16,7 @@ namespace SalesSim.Presentation
         [SerializeField] private ThinkingIndicatorView thinkingIndicator;
         [SerializeField] private Color playerBubbleColor = new Color(0.22f, 0.36f, 0.58f, 0.95f);
         [SerializeField] private Color customerBubbleColor = new Color(0.2f, 0.22f, 0.27f, 0.95f);
+        [SerializeField] private Color noticeBubbleColor = new Color(0.55f, 0.32f, 0.12f, 0.95f);
         [Tooltip("Space on the opposite side of a bubble, so player and customer messages are offset.")]
         [SerializeField] private int bubbleIndent = 140;
         [Tooltip("Within this many pixels of the bottom the view keeps following new messages.")]
@@ -53,6 +54,12 @@ namespace SalesSim.Presentation
         public ConversationMessageView AddCustomerMessage(string text)
         {
             return Add(ConversationSender.Customer, text, customerBubbleColor);
+        }
+
+        /// <summary>A game notice in the chat (amber, labelled "Hinweis"): visible, but not a line of the conversation.</summary>
+        public ConversationMessageView AddNotice(string text)
+        {
+            return Add(ConversationSender.Notice, text, noticeBubbleColor);
         }
 
         public void ShowThinking()

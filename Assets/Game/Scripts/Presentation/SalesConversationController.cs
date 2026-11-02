@@ -451,21 +451,21 @@ namespace SalesSim.Presentation
                 Render(state);
                 character.SetState(ToVisual(CustomerReaction.MoodAfterTurn(before, state.Indicators)));
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (this == null || destroyCancellationToken.IsCancellationRequested)
             {
+                // The scene is going away; there is no UI left to release.
                 return;
+            }
+            catch (SalesTurnFailedException exception)
+            {
+                // Expected provider problems (key, workspace, timeout, ...): a warning, and the player is told why.
+                Debug.LogWarning($"Customer could not answer ({exception.Failure}): {exception.Message}", this);
+                TurnNotTaken(playerMessage, message, TurnFailureText(exception.Failure));
             }
             catch (Exception exception)
             {
-                // The session did not take the turn: no customer line is invented; the text goes back for a retry.
                 Debug.LogException(exception, this);
-                StopThinking();
-                character.SetState(CharacterVisualState.Idle);
-                playerMessage.MarkNotDelivered();
-                if (playerInput.text.Length == 0)
-                {
-                    playerInput.text = message;
-                }
+                TurnNotTaken(playerMessage, message, TurnFailureText(SalesTurnFailure.Unknown));
             }
             finally
             {
@@ -484,6 +484,53 @@ namespace SalesSim.Presentation
             else
             {
                 ConversationEnded?.Invoke(session.CurrentState);
+            }
+        }
+
+        /// <summary>
+        /// The session did not take the turn: no customer line is invented, the reason is shown in the chat as a notice, and
+        /// the text goes back into the input for a retry (unless the player already typed something new).
+        /// </summary>
+        private void TurnNotTaken(ConversationMessageView playerMessage, string message, string reason)
+        {
+            StopThinking();
+            history.HideThinking();
+            character.SetState(CharacterVisualState.Idle);
+            playerMessage.MarkNotDelivered();
+            history.AddNotice(reason);
+            if (playerInput.text.Length == 0)
+            {
+                playerInput.text = message;
+            }
+        }
+
+        private static string TurnFailureText(SalesTurnFailure failure)
+        {
+            switch (failure)
+            {
+                case SalesTurnFailure.Authentication:
+                    return "Der Kunde konnte nicht antworten: Anthropic hat den API-Key abgelehnt (abgelaufen oder ungültig). "
+                           + "Trag einen gültigen Key als SALESSIM_ANTHROPIC_API_KEY in die .env ein und starte Play neu.";
+                case SalesTurnFailure.WorkspaceRequired:
+                    return "Der Kunde konnte nicht antworten: Der Anthropic-Key gilt für die ganze Organisation, nicht für einen Workspace. "
+                           + "Trag die Workspace-ID (wrkspc_…, Console → Settings → Workspaces) als SALESSIM_ANTHROPIC_WORKSPACE_ID in die .env ein "
+                           + "oder nutz einen Key aus einem Workspace, dann Play neu starten.";
+                case SalesTurnFailure.BadRequest:
+                    return "Der Kunde konnte nicht antworten: Anthropic hat die Anfrage abgelehnt (z. B. unbekanntes Modell in SALESSIM_ANTHROPIC_MODEL). Details in der Console.";
+                case SalesTurnFailure.QuotaExceeded:
+                    return "Der Kunde konnte nicht antworten: Das Anthropic-Konto hat kein Guthaben mehr. Prüf Plan und Abrechnung.";
+                case SalesTurnFailure.RateLimited:
+                    return "Der Kunde konnte nicht antworten: Zu viele Anfragen. Warte einen Moment und sende die Nachricht erneut.";
+                case SalesTurnFailure.Timeout:
+                    return "Der Kunde hat nicht rechtzeitig geantwortet. Sende die Nachricht erneut.";
+                case SalesTurnFailure.Network:
+                    return "Der Kunde konnte nicht antworten: Anthropic ist nicht erreichbar. Prüf die Internetverbindung und sende erneut.";
+                case SalesTurnFailure.ServiceUnavailable:
+                    return "Der Kunde konnte nicht antworten: Anthropic hat gerade ein Problem. Sende die Nachricht gleich noch einmal.";
+                case SalesTurnFailure.InvalidAnswer:
+                    return "Der Kunde konnte nicht antworten: Die Antwort war nicht verwendbar. Sende die Nachricht erneut.";
+                default:
+                    return "Der Kunde konnte nicht antworten. Sende die Nachricht erneut; Details stehen in der Console.";
             }
         }
 

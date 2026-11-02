@@ -1,6 +1,6 @@
 # Sales Engine ↔ Unity – Integration
 
-Stand: 2026-10-06 · Unity 6000.5.2f1 · Engine `tgregorczyk96/sales_engine`, Branch `feature/unity-netstandard-targets` (gepusht, Stand `698bdd4`, auf Basis `main@6bffd33`; noch nicht in `main` gemergt)
+Stand: 2026-10-06 · Unity 6000.5.2f1 · Engine `tgregorczyk96/sales_engine`, Branch `feature/unity-netstandard-targets` (gepusht, Stand `029e3e7`, auf Basis `main@6bffd33`; noch nicht in `main` gemergt)
 
 ## Kurzfassung
 
@@ -77,7 +77,7 @@ Infrastructure (Composition Root) ──► SalesSim.EngineAdapter.SalesEngineGa
 | Shared-Projekt / Git-Submodule mit Sources | mittel | mittel (Submodule-Pflege) | mittel | schlecht (gleiches C#-/TFM-Problem wie Source) | gering | ❌ |
 | Dünner Adapter um vorhandene Engine-Assemblies | – | – | – | – | – | ist **Teil** der gewählten Lösung (`SalesEngineGameSession`) |
 
-## Änderungen am Engine-Repo (Branch `feature/unity-netstandard-targets`, Commits `c483f03`, `b29c8fa`, `698bdd4`)
+## Änderungen am Engine-Repo (Branch `feature/unity-netstandard-targets`, Commits `c483f03`, `b29c8fa`, `698bdd4`, `029e3e7`)
 
 Kleinstmögliche Änderung: `SalesEngine.Content` und `SalesEngine.AI` bauen **zusätzlich** für `netstandard2.1`; `net10.0` (Console, Tests) bleibt funktional unverändert.
 
@@ -202,6 +202,20 @@ Die Figur auf dem Bildschirm ist der **Kunde** (Salon-Inhaberin aus dem Szenario
   - PlayMode `PushToTalkTests`: 22 Fälle mit gescripteter Session + Spracheingabe (Enter/Button starten und stoppen, Esc ohne Zug, Esc während Verarbeitung, Transkript im Feld + als Zug + Kundenantwort, leeres Transkript, Startfehler je Art + erneuter Versuch, Transkriptionsfehler behält Entwurf, Verbindungsabbruch, Beenden während Aufnahme, neuer Run, doppelte Eingaben, Texteingabe unverändert, nicht verfügbar).
   - Gesamt: EditMode 116 bestanden / 3 übersprungen (die expliziten Live-Tests), PlayMode 73 bestanden / 1 übersprungen (`SalesEngineSmokeTest`, explizit).
   - Gesprochen ins echte Mikrofon und im Editor gespielt wurde noch nicht (keine Person in der Testumgebung).
+
+## Kundenantworten bei Key ohne Workspace (Fix 2026-11-02)
+
+- **Symptom:** Nach dem Tausch des abgelaufenen Anthropic-Keys kam auf jede Nachricht keine Kundenantwort; die Nachricht war nur als „nicht zugestellt“ markiert.
+- **Ursache:** Der neue Key gilt für die ganze Organisation und ist keinem Workspace zugeordnet. Für solche Keys verlangt die API den Header `anthropic-workspace-id` (`wrkspc_…`); ohne ihn antwortet sie mit HTTP 400 (`invalid_request_error`: „This API key is not scoped to a workspace …“). `.env`, Key-Format, Modell (`claude-sonnet-5-5`) und Endpunkt waren in Ordnung, keine Umgebungsvariable hat die `.env` überschrieben. Unity zeigte den Grund nicht an; er stand nur in der Console.
+- **Engine:** `LlmOptions.WorkspaceId` aus `SALESSIM_ANTHROPIC_WORKSPACE_ID` (optional, nur Anthropic, muss mit `wrkspc_` beginnen). `AnthropicMessagesClient` sendet ihn als `anthropic-workspace-id`; ohne Wert wird kein Header gesendet (Workspace-Keys laufen wie bisher). Die 400-Antwort „not scoped to a workspace“ wird in beiden Anthropic-Clients zu einer klaren Meldung mit der zu setzenden Variable. Console: Bei gesetzter Workspace-ID bekommt der SDK-Client einen eigenen `HttpClient` mit dem Header (das SDK hat keinen Request-Header-Parameter).
+- **Unity-Boundary:** `ISalesGameSession.SendPlayerTurnAsync` wirft jetzt `SalesTurnFailedException` mit `SalesTurnFailure` (`Authentication`, `WorkspaceRequired`, `BadRequest`, `RateLimited`, `QuotaExceeded`, `Timeout`, `Network`, `ServiceUnavailable`, `InvalidAnswer`, `Unknown`) statt der Engine-Exception; der Adapter mappt `LlmProviderException`/`TimeoutException`. Zustand bleibt unverändert, der Zug kann erneut gesendet werden.
+- **Anzeige:** Bei einem fehlgeschlagenen Zug erscheint im Chat eine Hinweis-Blase (`ConversationSender.Notice`, Label „Hinweis“, bernsteinfarben) mit Ursache und Abhilfe, z. B. „Trag die Workspace-ID … als SALESSIM_ANTHROPIC_WORKSPACE_ID in die .env ein …“. Die Spielernachricht bleibt „nicht zugestellt“, der Text kommt zurück ins Eingabefeld, Eingabe und Senden sind wieder frei. Erwartete Provider-Fehler werden als Warning geloggt, unerwartete weiter als Exception. Eine Abbruch-Exception, die nicht vom Zerstören der Szene kommt, blockiert die Eingabe nicht mehr dauerhaft.
+- **Diagnose-Log beim Start (ohne Werte):** `[SalesClient] Settings: SALESSIM_ANTHROPIC_API_KEY from .env, SALESSIM_ANTHROPIC_WORKSPACE_ID from not set` (bzw. `environment (overrides .env)`), und `[SalesClient] Customer: Anthropic LLM (model …, timeout …, workspace wrkspc_… | from the key)`.
+- **Tests:**
+  - Engine: +9 (Header gesendet / nicht gesendet, 400 ohne Workspace → klare Meldung in beiden Clients, andere 400 unverändert, Workspace-ID lesen/validieren/OpenAI ignoriert); gesamt 1.564 bestanden, 26 übersprungen, 0 Fehler.
+  - Unity EditMode: `SalesEngineGameSessionTests` +9 (Workspace-Header, `WorkspaceRequired`, 401/403 → `Authentication` ohne Key im Log, Timeout, Netzwerkfehler, ungültige Workspace-ID, Wiederholung nach Fehler), `LocalSettingsTests` (4: `.env` lesen, neuer Key beim nächsten Laden, Umgebungsvariable gewinnt und wird gemeldet, nicht gesetzt); gesamt 129 bestanden, 3 übersprungen (explizite Live-Tests).
+  - Unity PlayMode: `CustomerReplyFailureTests` (9: Hinweis je Fehlerart, Eingabe frei, kein erfundener Kunde, Retry = normaler Zug mit Antwort, kein doppelter Zug, unerwarteter Fehler, Abbruch blockiert nicht); gesamt 82 bestanden, 1 übersprungen (`SalesEngineSmokeTest`, explizit).
+  - Live (`SalesEngineSmokeTest`, angepasst an das Run-Setup, ohne Savegame): mit dem aktuellen Key und ohne Workspace-ID → HTTP 400, im Spiel erscheint der Workspace-Hinweis. Nach dem Eintragen der Workspace-ID: ein minimaler Live-Aufruf über denselben `AnthropicMessagesClient` mit Key + Workspace aus der `.env` → HTTP 200, Antwort gelesen (2026-11-02). Ein vollständiger Zug im Unity-Editor (Play) ist noch durch den Spieler zu bestätigen; der Batchmode-Lauf der Projektkopie scheiterte an Windows-Pfadlängen, nicht am Code.
 
 ## Weitere offene Punkte
 
