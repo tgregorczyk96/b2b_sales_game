@@ -1,6 +1,6 @@
 # Sales Engine ↔ Unity – Integration
 
-Stand: 2026-10-06 · Unity 6000.5.2f1 · Engine `tgregorczyk96/sales_engine`, Branch `feature/unity-netstandard-targets` (gepusht, Stand `029e3e7`, auf Basis `main@6bffd33`; noch nicht in `main` gemergt)
+Stand: 2026-10-06 · Unity 6000.5.2f1 · Engine `tgregorczyk96/sales_engine`, `main@029e3e7` (Branch `feature/unity-netstandard-targets` am 2026-11-02 per Fast-Forward gemergt)
 
 ## Kurzfassung
 
@@ -223,7 +223,7 @@ Die Figur auf dem Bildschirm ist der **Kunde** (Salon-Inhaberin aus dem Szenario
 - `IsConversationOver`/`FinalTurnPending`: Unity zeigt die angekündigte letzte Runde noch nicht an.
 - Opening-Evaluator ist nicht verdrahtet (beeinflusst keine der angezeigten Werte).
 - Player-Builds: Content liegt in `StreamingAssets` (Desktop OK; Android/WebGL bräuchten anderes Laden).
-- Engine-Branch `feature/unity-netstandard-targets` reviewen und nach `main` mergen; danach neu syncen, damit `ENGINE_VERSION.txt` einen `main`-Commit nennt. (DLLs, Content und `ENGINE_VERSION.txt` liegen im Unity-Repo, das Projekt baut ohne Engine-Checkout.)
+- Erledigt 2026-11-02: Engine-Branch nach `main` gemergt und neu gesynct (`ENGINE_VERSION.txt` nennt `main@029e3e7`). DLLs, Content und `ENGINE_VERSION.txt` liegen im Unity-Repo, das Projekt baut ohne Engine-Checkout.
 
 ## Smoke-Test
 
