@@ -1,6 +1,6 @@
 # Sales Engine ↔ Unity – Integration
 
-Stand: 2026-10-06 · Unity 6000.5.2f1 · Engine `tgregorczyk96/sales_engine`, Branch `feature/unity-netstandard-targets` (lokal, nicht committet, auf Basis `main@6bffd33`)
+Stand: 2026-10-06 · Unity 6000.5.2f1 · Engine `tgregorczyk96/sales_engine`, Branch `feature/unity-netstandard-targets` (gepusht, Stand `698bdd4`, auf Basis `main@6bffd33`; noch nicht in `main` gemergt)
 
 ## Kurzfassung
 
@@ -10,7 +10,8 @@ Stand: 2026-10-06 · Unity 6000.5.2f1 · Engine `tgregorczyk96/sales_engine`, Br
 | Origin Scenario aus Seed (`SalesEngine.Content`) | ✅ läuft (`hair-salon:1406361028`, Easy) |
 | Echter LLM-Kunde (`SalesEngine.AI`) in Unity | ✅ läuft über den SDK-freien `AnthropicMessagesClient`, sobald `SALESSIM_ANTHROPIC_API_KEY` gesetzt ist |
 | Kunde ohne Key | Placeholder-Kunde **der Engine** (gescriptete Antworten, kein Intent); Grund steht im Log (`[SalesClient] Fallback reason`) |
-| Voice, STT, TTS, Hume, Animation, Savegames, Szenario-Auswahl | bewusst nicht integriert |
+| Spracheingabe (Push-to-Talk, ElevenLabs `scribe_v2_realtime`) | ✅ läuft über `SalesEngine.Voice(.ElevenLabs)`, sobald `SALESSIM_ELEVENLABS_API_KEY` gesetzt ist (siehe „Push-to-Talk“) |
+| Sprachausgabe des Kunden (TTS), Hume, Animation | nicht integriert (TTS existiert in der Engine, ist in Unity aber noch nicht angebunden) |
 
 ## Verwendeter Integrationsweg
 
@@ -76,7 +77,7 @@ Infrastructure (Composition Root) ──► SalesSim.EngineAdapter.SalesEngineGa
 | Shared-Projekt / Git-Submodule mit Sources | mittel | mittel (Submodule-Pflege) | mittel | schlecht (gleiches C#-/TFM-Problem wie Source) | gering | ❌ |
 | Dünner Adapter um vorhandene Engine-Assemblies | – | – | – | – | – | ist **Teil** der gewählten Lösung (`SalesEngineGameSession`) |
 
-## Änderungen am Engine-Repo (Branch `feature/unity-netstandard-targets`, uncommitted)
+## Änderungen am Engine-Repo (Branch `feature/unity-netstandard-targets`, Commits `c483f03`, `b29c8fa`, `698bdd4`)
 
 Kleinstmögliche Änderung: `SalesEngine.Content` und `SalesEngine.AI` bauen **zusätzlich** für `netstandard2.1`; `net10.0` (Console, Tests) bleibt funktional unverändert.
 
@@ -183,13 +184,32 @@ Die Figur auf dem Bildschirm ist der **Kunde** (Salon-Inhaberin aus dem Szenario
 - **Copy – Lösung:** „Kopieren“-Button (`CopyTextButton`, Feedback „Kopiert“ für 1,5 s) an jeder Chat-Nachricht und jeder Guidance-Stufe (nur bei fertigem Text, nicht beim Laden/Fehler), schreibt über `TextClipboard.Current` (Standard: System-Zwischenablage, Tests: Fake). Guidance-Text ist jetzt dasselbe markierbare read-only `SelectableMessageText` wie der Chat. Nach dem Kopieren (und nach Guidance) bekommt das Eingabefeld den Fokus zurück, Cursor ans Ende des Entwurfs.
 - **Tests:** EditMode `SaveGameTests` (14); PlayMode `CopyTests` (7, Fake-Clipboard; der echte Ctrl+C-Test wird übersprungen, wenn die Zwischenablage gesperrt ist), `SaveGameFlowTests` (3, temporäre Save-Datei).
 
+## Push-to-Talk (Spracheingabe, 2026-11-02)
+
+- **Vorhanden (Engine, wiederverwendet):** `SalesEngine.Voice` (neutrale Verträge `ISpeechToTextProvider` / `ITranscriptionSession`, netstandard2.1) und `SalesEngine.Voice.ElevenLabs` (`ElevenLabsSpeechToTextProvider`: Realtime-WebSocket, `scribe_v2_realtime`, manueller Commit, Abbruch = Dispose ohne Commit, `TranscriptionException` mit `Kind`, Key nur im Header, nie in Meldungen). Push-to-Talk-Ablauf und Mikrofon gab es nur in der Console (`SalesConsole/PushToTalk.cs`, `WindowsMicrophone`); Unity übernimmt denselben Ablauf, eine eigene STT-Anbindung gibt es nicht.
+- **Engine-Änderung (Branch `feature/unity-netstandard-targets`):** `SalesEngine.Voice.ElevenLabs` baut zusätzlich `netstandard2.1` (wie AI/Content): `[GeneratedRegex]` und `HttpRequestError` unter `#if NET`; neue Polyfills in `Shared/NetStandardPolyfills.cs` (`Task(.<T>).WaitAsync(CancellationToken)`, nicht-generisches `TaskCompletionSource`, `ObjectDisposedException.ThrowIf`, `HttpContent.ReadAsByteArrayAsync(CancellationToken)`). Monos `ClientWebSocket` hat kein `HttpStatusCode`; `ClientRealtimeSocket.HandshakeStatus` liest den Status aus der Handshake-Exception (`WebException`-Response oder „status code '401' …“), damit ein abgelehnter Key nicht als Netzwerkfehler erscheint. Engine-Tests: 1.553 bestanden, 26 übersprungen, 0 Fehler (+7 `RealtimeSocketTests`).
+- **Sync:** `Tools/Sync-SalesEngine.ps1` baut und kopiert jetzt auch `SalesEngine.Voice.dll` und `SalesEngine.Voice.ElevenLabs.dll` (explicitly referenced, nur `SalesSim.EngineAdapter` und die EditMode-Tests sehen sie).
+- **Unity-Boundary:**
+  - Application: `ISpeechInput` (`StartRecordingAsync` → `ISpeechRecording` mit `FinishAsync` / `Interrupted` / `Dispose` = verwerfen), `SpeechInputException` + `SpeechInputError`, `IMicrophone` (PCM16-Chunks, wie die Console), `UnavailableSpeechInput`.
+  - EngineAdapter: `ElevenLabsSpeechInput`. Öffnet zuerst die Transkription (ein falscher Key zeigt sich vor der Aufnahme), streamt das Mikrofon mit 16 kHz mono hinein, dann Commit → Transkript; Verwerfen ohne Commit. Mappt `TranscriptionErrorKind` → `SpeechInputError`. `Create` liest `ElevenLabsSpeechToTextOptions.FromEnvironment` (Key, `SALESSIM_ELEVENLABS_STT_MODEL`, `SALESSIM_ELEVENLABS_STT_LANGUAGE`, Default `de`); ohne Key nicht verfügbar mit Grund. Log: `[SalesVoice] Speech input: ElevenLabs scribe_v2_realtime, language de, timeout 30s` (nie der Key).
+  - Infrastructure: `UnityMicrophone` (`UnityEngine.Microphone`, Standardgerät, Loop-Clip, alle 100 ms gelesen, float → PCM16, ggf. resampelt). Kein Gerät → `NoMicrophone`; 2 s ohne Samples → `MicrophoneDenied` (z. B. Windows-Datenschutz); Aufnahme bricht ab → `MicrophoneFailed`. `SalesTestSceneBootstrap` verdrahtet es; Key nur aus Umgebung / git-ignorierter `.env`.
+- **Bedienung (`SalesConversationController`):** Enter bei **leerem** Eingabefeld oder Button „Sprechen“ → Aufnahme; Enter / „Stopp“ → Transkription; Esc → verwerfen (auch während der Verarbeitung). Enter mit getipptem Entwurf startet keine Aufnahme (Texteingabe bleibt wie bisher; der Button geht trotzdem, der Entwurf kommt bei Abbruch/Fehler zurück). Teil-Transkripte erscheinen live im Eingabefeld; das finale Transkript steht im Feld und geht dann über **denselben** Sendepfad wie Text (`SendTurn`), also unverändert durch Engine, Indikatoren, Phasen, Thinking, Charakter und Fehlerbehandlung. Während Aufnahme/Verarbeitung sind Senden, Tippen und Guidance gesperrt; ein Toggle pro Frame (Taste + Klick zählen einmal); der Button ist nicht per Navigation auswählbar und wird nach dem Klick abgewählt, sonst würde das Input-System-„Submit“ auf Enter ihn ein zweites Mal drücken. Beenden, neuer Run oder Zerstörung verwerfen eine laufende Aufnahme; späte Transkripte werden über einen Versuchszähler verworfen.
+- **UI (`SpeechInputView`, Builder „Sales Sim/Build Speech Input UI“ → `SpeechInputUiBuilder`):** Button zwischen Eingabe (jetzt 0.04–0.70) und „Senden“, Statuszeile darunter. Zustände: Bereit („Sprechen“, hell), Startet / Verarbeitung („…“, gelb, gesperrt), Aufnahme („Stopp“, rot, pulsierender Punkt, „Aufnahme läuft – Enter: senden · Esc: abbrechen“), Fehler (orange Statuszeile, erneut startbar), nicht verfügbar (Button aus, Grund in der Statuszeile). Fehlertexte auf Deutsch je `SpeechInputError`, immer mit „nichts gesendet“.
+- **Nicht gemacht:** Sprachausgabe des Kunden (`ElevenLabsTextToSpeechProvider` wäre jetzt in Unity ladbar, ist aber nicht angebunden), keine Änderungen an Economy oder Balancing.
+- **Tests:**
+  - EditMode `SpeechInputTests`: 23 Fälle mit Fake-Provider und Fake-Mikrofon (Ablauf, 16 kHz / Sprache, Commit + Trim, leeres Transkript, Verwerfen ohne Commit + Abbruch laufender Sends, Fehler-Mapping, kein Mikrofon, Verbindungsabbruch, Abbruch beim Start, Teil-Transkripte, Konfiguration mit/ohne Key ohne Key-Log, PCM-Konvertierung).
+  - Dazu 3 `[Explicit]`-Tests, am 2026-11-02 bestanden: ungültiger Key aus Mono → `Authentication`; TTS-Satz → Adapter → „Guten Tag. Ich möchte Ihnen unsere Webseite vorstellen.“; echtes Standardmikrofon liefert 2,1 s PCM.
+  - PlayMode `PushToTalkTests`: 22 Fälle mit gescripteter Session + Spracheingabe (Enter/Button starten und stoppen, Esc ohne Zug, Esc während Verarbeitung, Transkript im Feld + als Zug + Kundenantwort, leeres Transkript, Startfehler je Art + erneuter Versuch, Transkriptionsfehler behält Entwurf, Verbindungsabbruch, Beenden während Aufnahme, neuer Run, doppelte Eingaben, Texteingabe unverändert, nicht verfügbar).
+  - Gesamt: EditMode 116 bestanden / 3 übersprungen (die expliziten Live-Tests), PlayMode 73 bestanden / 1 übersprungen (`SalesEngineSmokeTest`, explizit).
+  - Gesprochen ins echte Mikrofon und im Editor gespielt wurde noch nicht (keine Person in der Testumgebung).
+
 ## Weitere offene Punkte
 
 - `Engagement` vs. `Interest` (s. Mapping).
 - `IsConversationOver`/`FinalTurnPending`: Unity zeigt die angekündigte letzte Runde noch nicht an.
 - Opening-Evaluator ist nicht verdrahtet (beeinflusst keine der angezeigten Werte).
 - Player-Builds: Content liegt in `StreamingAssets` (Desktop OK; Android/WebGL bräuchten anderes Laden).
-- DLLs/Content sollten committed werden (Unity-Projekt baut dann ohne Engine-Checkout); Engine-Branch vorher reviewen/committen und neu syncen, damit `ENGINE_VERSION.txt` einen sauberen Commit nennt.
+- Engine-Branch `feature/unity-netstandard-targets` reviewen und nach `main` mergen; danach neu syncen, damit `ENGINE_VERSION.txt` einen `main`-Commit nennt. (DLLs, Content und `ENGINE_VERSION.txt` liegen im Unity-Repo, das Projekt baut ohne Engine-Checkout.)
 
 ## Smoke-Test
 

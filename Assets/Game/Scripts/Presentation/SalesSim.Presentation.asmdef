@@ -5,7 +5,8 @@
         "SalesSim.Application",
         "SalesSim.Game",
         "UnityEngine.UI",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

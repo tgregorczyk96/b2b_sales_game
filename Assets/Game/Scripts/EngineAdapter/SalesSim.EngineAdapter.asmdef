@@ -11,7 +11,9 @@
     "precompiledReferences": [
         "SalesEngine.dll",
         "SalesEngine.Content.dll",
-        "SalesEngine.AI.dll"
+        "SalesEngine.AI.dll",
+        "SalesEngine.Voice.dll",
+        "SalesEngine.Voice.ElevenLabs.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [],

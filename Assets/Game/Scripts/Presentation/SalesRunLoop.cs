@@ -35,6 +35,8 @@ namespace SalesSim.Presentation
 
         public PlayerWallet Wallet => wallet;
 
+        public SalesConversationController Conversation => conversation;
+
         public RunRegistry Runs => runs;
 
         /// <summary>The run being played or just finished; <c>null</c> before the first run.</summary>

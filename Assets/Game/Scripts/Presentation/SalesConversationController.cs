@@ -1,9 +1,13 @@
 using System;
 using System.Collections;
+using System.Threading;
+using System.Threading.Tasks;
 using SalesSim.Application;
 using SalesSim.Game;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace SalesSim.Presentation
@@ -15,6 +19,9 @@ namespace SalesSim.Presentation
     /// mood read from the engine's indicator change (<see cref="CustomerReaction"/>).
     /// Live guidance (Hinweis / Mehr Hinweis / Beispiel) is requested from the session between turns and shown in the
     /// <see cref="GuidancePanelView"/>, never in the chat; successful requests are counted per run in <see cref="GuidanceUsage"/>.
+    /// Push-to-talk (<see cref="ISpeechInput"/>): Enter on an empty input or the microphone button starts recording, Enter
+    /// or the button again sends it, Escape discards it. The transcript is shown in the input and then sent exactly like a
+    /// typed line; a discarded, empty or failed recording never becomes a turn.
     /// </summary>
     public sealed class SalesConversationController : MonoBehaviour
     {
@@ -25,10 +32,27 @@ namespace SalesSim.Presentation
         [SerializeField] private SalesDebugPanelView debugPanel;
         [SerializeField] private CharacterView character;
         [SerializeField] private GuidancePanelView guidance;
+        [SerializeField] private SpeechInputView speech;
         [Tooltip("How long the character shows Speaking after the player sends, before it switches to Thinking.")]
         [SerializeField] private float speakingSeconds = 0.6f;
 
+        private enum SpeechPhase
+        {
+            Idle,
+            Starting,
+            Recording,
+            Processing,
+        }
+
         private ISalesGameSession session;
+        private ISpeechInput speechInput = new UnavailableSpeechInput("Spracheingabe nicht verbunden.");
+        private SpeechPhase speechPhase;
+        private int speechAttempt;
+        private ISpeechRecording recording;
+        private CancellationTokenSource speechCancellation;
+        private TaskCompletionSource<bool> speechStopRequested;
+        private string draftBeforeSpeech = string.Empty;
+        private int lastSpeechToggleFrame = -1;
         private Coroutine thinkingRoutine;
         private bool turnInProgress;
         private bool conversationOver;
@@ -51,6 +75,12 @@ namespace SalesSim.Presentation
         /// <summary>Guidance used in the current run; a fresh counter per run.</summary>
         public GuidanceUsage GuidanceUsage => guidanceUsage;
 
+        /// <summary>True from the start of a recording until its transcript is sent or it is discarded or fails.</summary>
+        public bool IsSpeechInProgress => speechPhase != SpeechPhase.Idle;
+
+        /// <summary>True while the microphone records (Enter sends, Escape discards).</summary>
+        public bool IsRecording => speechPhase == SpeechPhase.Recording;
+
         private void Awake()
         {
             sendButton.onClick.AddListener(OnSendClicked);
@@ -58,6 +88,8 @@ namespace SalesSim.Presentation
             guidance.Requested += OnGuidanceRequested;
             guidance.Copied += ReturnFocusToInput;
             history.MessageCopied += ReturnFocusToInput;
+            speech.Clicked += OnMicrophoneClicked;
+            ShowSpeechReady();
             SetInputEnabled(false);
         }
 
@@ -68,6 +100,281 @@ namespace SalesSim.Presentation
             guidance.Requested -= OnGuidanceRequested;
             guidance.Copied -= ReturnFocusToInput;
             history.MessageCopied -= ReturnFocusToInput;
+            speech.Clicked -= OnMicrophoneClicked;
+            // Stops the microphone and drops the recording; the UI is going away, so nothing is shown.
+            speechAttempt++;
+            speechCancellation?.Cancel();
+            EndSpeech();
+        }
+
+        private void Update()
+        {
+            var keyboard = Keyboard.current;
+            if (keyboard == null)
+            {
+                return;
+            }
+
+            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
+            {
+                PressTalkKey();
+            }
+            else if (keyboard.escapeKey.wasPressedThisFrame)
+            {
+                PressCancelKey();
+            }
+        }
+
+        /// <summary>The speech input to record with; replaces the "not connected" default. Called by the composition root.</summary>
+        public void SetSpeechInput(ISpeechInput input)
+        {
+            DiscardSpeech(null);
+            speechInput = input ?? new UnavailableSpeechInput("Spracheingabe nicht verbunden.");
+            ShowSpeechReady();
+            SetInputEnabled(inputEnabled);
+        }
+
+        /// <summary>
+        /// Enter: starts recording when the input is empty (a typed draft is never taken over by Enter), sends the running
+        /// recording, and is ignored otherwise.
+        /// </summary>
+        public void PressTalkKey()
+        {
+            if (speechPhase == SpeechPhase.Recording)
+            {
+                ToggleSpeech();
+            }
+            else if (speechPhase == SpeechPhase.Idle && playerInput.text.Trim().Length == 0)
+            {
+                ToggleSpeech();
+            }
+        }
+
+        /// <summary>Escape: discards a running recording or transcription; nothing of it is sent.</summary>
+        public void PressCancelKey()
+        {
+            if (speechPhase != SpeechPhase.Idle)
+            {
+                DiscardSpeech("Aufnahme abgebrochen – nichts gesendet.");
+            }
+        }
+
+        private void OnMicrophoneClicked()
+        {
+            // The Input System UI module sends Enter as "submit" to the selected button; without this, the next Enter
+            // would press the microphone button a second time on top of the Enter key itself.
+            if (EventSystem.current != null)
+            {
+                EventSystem.current.SetSelectedGameObject(null);
+            }
+
+            ToggleSpeech();
+        }
+
+        /// <summary>One toggle per frame, whether it came from the key, the button or both.</summary>
+        private void ToggleSpeech()
+        {
+            if (lastSpeechToggleFrame == Time.frameCount)
+            {
+                return;
+            }
+
+            lastSpeechToggleFrame = Time.frameCount;
+            if (speechPhase == SpeechPhase.Recording)
+            {
+                speechStopRequested?.TrySetResult(true);
+            }
+            else if (speechPhase == SpeechPhase.Idle && CanStartSpeech())
+            {
+                RecordAndSend();
+            }
+        }
+
+        private bool CanStartSpeech()
+        {
+            return speechInput.IsAvailable && session != null && inputEnabled && !turnInProgress && !guidanceInProgress && !conversationOver;
+        }
+
+        /// <summary>
+        /// One push-to-talk turn: record until the player stops, transcribe, show the transcript in the input and send it
+        /// like a typed line. Every await re-checks <see cref="speechAttempt"/>: a discard (Escape, end of the conversation,
+        /// new run) bumps it, and nothing of the old attempt may reach the conversation after that.
+        /// </summary>
+        private async void RecordAndSend()
+        {
+            var attempt = ++speechAttempt;
+            speechPhase = SpeechPhase.Starting;
+            draftBeforeSpeech = playerInput.text;
+            speechCancellation = CancellationTokenSource.CreateLinkedTokenSource(destroyCancellationToken);
+            speechStopRequested = new TaskCompletionSource<bool>();
+            speech.Show(SpeechInputViewState.Starting, "Mikrofon wird gestartet …");
+            SetInputEnabled(inputEnabled);
+
+            var partials = new Progress<string>(text =>
+            {
+                if (attempt == speechAttempt && speechPhase == SpeechPhase.Recording)
+                {
+                    playerInput.text = text;
+                }
+            });
+
+            string transcript;
+            try
+            {
+                var started = await speechInput.StartRecordingAsync(partials, speechCancellation.Token);
+                if (attempt != speechAttempt)
+                {
+                    started.Dispose();
+                    return;
+                }
+
+                recording = started;
+                speechPhase = SpeechPhase.Recording;
+                playerInput.text = string.Empty;
+                speech.Show(SpeechInputViewState.Recording, "Aufnahme läuft – Enter: senden · Esc: abbrechen");
+                SetInputEnabled(inputEnabled);
+
+                var ended = await Task.WhenAny(speechStopRequested.Task, started.Interrupted);
+                if (attempt != speechAttempt)
+                {
+                    return;
+                }
+
+                if (ended == started.Interrupted)
+                {
+                    await started.Interrupted; // throws the reason
+                }
+
+                speechPhase = SpeechPhase.Processing;
+                speech.Show(SpeechInputViewState.Processing, "Sprache wird erkannt …");
+                SetInputEnabled(inputEnabled);
+                transcript = await started.FinishAsync(speechCancellation.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                if (attempt == speechAttempt)
+                {
+                    FailSpeech(exception);
+                }
+
+                return;
+            }
+
+            if (attempt != speechAttempt)
+            {
+                return;
+            }
+
+            EndSpeech();
+            if (transcript.Length == 0)
+            {
+                playerInput.text = draftBeforeSpeech;
+                speech.Show(SpeechInputViewState.Error, "Keine Sprache erkannt – nichts gesendet. Nochmal mit Enter oder tippen.");
+                SetInputEnabled(inputEnabled);
+                return;
+            }
+
+            // The transcript is the player's line: visible in the input, then the ordinary send path.
+            playerInput.text = transcript;
+            ShowSpeechReady();
+            SetInputEnabled(inputEnabled);
+            SendTurn(transcript);
+        }
+
+        private void FailSpeech(Exception exception)
+        {
+            var error = exception as SpeechInputException;
+            if (error == null)
+            {
+                Debug.LogException(exception, this);
+            }
+            else
+            {
+                Debug.LogWarning($"Speech input failed ({error.Error}): {error.Message}", this);
+            }
+
+            EndSpeech();
+            playerInput.text = draftBeforeSpeech;
+            speech.Show(SpeechInputViewState.Error, SpeechErrorText(error?.Error ?? SpeechInputError.ServiceError));
+            SetInputEnabled(inputEnabled);
+        }
+
+        /// <summary>Stops any recording or transcription without a turn; <paramref name="status"/> is shown if given.</summary>
+        private void DiscardSpeech(string status)
+        {
+            if (speechPhase == SpeechPhase.Idle)
+            {
+                return;
+            }
+
+            speechAttempt++;
+            speechCancellation?.Cancel();
+            EndSpeech();
+            playerInput.text = draftBeforeSpeech;
+            if (status == null)
+            {
+                ShowSpeechReady();
+            }
+            else
+            {
+                speech.Show(SpeechInputViewState.Ready, status);
+            }
+
+            SetInputEnabled(inputEnabled);
+        }
+
+        private void EndSpeech()
+        {
+            speechPhase = SpeechPhase.Idle;
+            speechStopRequested?.TrySetCanceled(); // lets a discarded attempt's wait return instead of hanging
+            recording?.Dispose();
+            recording = null;
+            speechCancellation?.Dispose();
+            speechCancellation = null;
+            speechStopRequested = null;
+        }
+
+        private void ShowSpeechReady()
+        {
+            if (speechInput.IsAvailable)
+            {
+                speech.Show(SpeechInputViewState.Ready, "Enter (leeres Feld) oder „Sprechen“: Spracheingabe");
+            }
+            else
+            {
+                speech.Show(SpeechInputViewState.Unavailable, speechInput.UnavailableReason);
+            }
+        }
+
+        private static string SpeechErrorText(SpeechInputError error)
+        {
+            switch (error)
+            {
+                case SpeechInputError.NotConfigured:
+                    return "Spracheingabe ist nicht eingerichtet (SALESSIM_ELEVENLABS_API_KEY). Tippen geht weiterhin.";
+                case SpeechInputError.NoMicrophone:
+                    return "Kein Mikrofon gefunden – nichts gesendet. Schließ eins an oder tipp deine Antwort.";
+                case SpeechInputError.MicrophoneDenied:
+                    return "Kein Zugriff aufs Mikrofon – nichts gesendet. Erlaube ihn in den Windows-Datenschutzeinstellungen.";
+                case SpeechInputError.MicrophoneFailed:
+                    return "Das Mikrofon konnte nicht aufnehmen – nichts gesendet. Versuch es erneut oder tipp.";
+                case SpeechInputError.Authentication:
+                    return "ElevenLabs hat den API-Key abgelehnt (SALESSIM_ELEVENLABS_API_KEY) – nichts gesendet.";
+                case SpeechInputError.Unreachable:
+                    return "ElevenLabs ist nicht erreichbar – nichts gesendet. Prüf die Internetverbindung oder tipp.";
+                case SpeechInputError.Timeout:
+                    return "ElevenLabs hat nicht rechtzeitig geantwortet – nichts gesendet. Versuch es erneut.";
+                case SpeechInputError.Busy:
+                    return "ElevenLabs ist gerade ausgelastet – nichts gesendet. Versuch es gleich noch einmal.";
+                case SpeechInputError.QuotaExceeded:
+                    return "Das ElevenLabs-Kontingent ist aufgebraucht – nichts gesendet. Tippen geht weiterhin.";
+                default:
+                    return "Spracherkennung fehlgeschlagen – nichts gesendet. Versuch es erneut oder tipp.";
+            }
         }
 
         /// <summary>Starts a fresh conversation (one run) on <paramref name="salesSession"/>.</summary>
@@ -78,6 +385,8 @@ namespace SalesSim.Presentation
             ISalesGameSession salesSession, string scenario, PlayerProfile playerProfile = null, string difficulty = null)
         {
             session = salesSession ?? throw new ArgumentNullException(nameof(salesSession));
+            DiscardSpeech(null);
+            draftBeforeSpeech = string.Empty;
             conversationOver = false;
             turnInProgress = false;
             guidanceInProgress = false;
@@ -105,9 +414,19 @@ namespace SalesSim.Presentation
             }
         }
 
-        private async void OnSendClicked()
+        private void OnSendClicked()
         {
-            var message = playerInput.text.Trim();
+            if (speechPhase != SpeechPhase.Idle)
+            {
+                return;
+            }
+
+            SendTurn(playerInput.text.Trim());
+        }
+
+        /// <summary>The one path for a player's line, typed or spoken.</summary>
+        private async void SendTurn(string message)
+        {
             if (session == null || turnInProgress || guidanceInProgress || conversationOver || message.Length == 0)
             {
                 return;
@@ -175,6 +494,8 @@ namespace SalesSim.Presentation
                 return;
             }
 
+            // Ending while talking discards the recording: it never becomes a turn of this or any later conversation.
+            DiscardSpeech(null);
             SetInputEnabled(false);
             try
             {
@@ -200,6 +521,7 @@ namespace SalesSim.Presentation
         private async void OnGuidanceRequested(GuidanceLevel level)
         {
             if (session == null || !inputEnabled || turnInProgress || guidanceInProgress || conversationOver
+                || speechPhase != SpeechPhase.Idle
                 || session.GetGuidanceAvailability(level) != GuidanceAvailability.Available)
             {
                 return;
@@ -364,16 +686,20 @@ namespace SalesSim.Presentation
         private void SetInputEnabled(bool enabled)
         {
             inputEnabled = enabled;
-            playerInput.interactable = enabled;
-            sendButton.interactable = enabled && !guidanceInProgress;
+            var speaking = speechPhase != SpeechPhase.Idle;
+            // While talking, the input shows the live transcript and only the recording itself can be sent.
+            playerInput.interactable = enabled && !speaking;
+            sendButton.interactable = enabled && !guidanceInProgress && !speaking;
             endButton.interactable = enabled && !guidanceInProgress;
+            speech.SetInteractable(speechPhase == SpeechPhase.Recording
+                                   || (speechPhase == SpeechPhase.Idle && enabled && !guidanceInProgress && speechInput.IsAvailable));
             foreach (GuidanceLevel level in Enum.GetValues(typeof(GuidanceLevel)))
             {
                 var availability = session == null ? GuidanceAvailability.NotStarted : session.GetGuidanceAvailability(level);
                 guidance.SetAvailability(level, availability == GuidanceAvailability.Available, UnavailableNote(availability));
             }
 
-            guidance.SetInteractable(enabled && !guidanceInProgress);
+            guidance.SetInteractable(enabled && !guidanceInProgress && !speaking);
         }
 
         /// <summary>Short note under a button the engine does not allow; empty where a plain disabled button is enough.</summary>

@@ -5,6 +5,7 @@
 .DESCRIPTION
     The engine stays a separate, Unity-independent repository. This script is the only bridge:
       - SalesEngine.dll, SalesEngine.Content.dll, SalesEngine.AI.dll  -> Assets/Plugins/SalesEngine/
+      - SalesEngine.Voice.dll, SalesEngine.Voice.ElevenLabs.dll       -> Assets/Plugins/SalesEngine/ (speech input)
       - content/**/*.json (curated scenario content)                  -> Assets/StreamingAssets/SalesEngine/content/
       - the engine commit the files were built from                   -> Assets/Plugins/SalesEngine/ENGINE_VERSION.txt
     No NuGet dependencies are copied: the only one (System.Text.Json 8) is part of Unity's BCL extensions.
@@ -25,7 +26,7 @@ $projectRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $EnginePath = Resolve-Path $EnginePath
 $pluginDir = Join-Path $projectRoot 'Assets\Plugins\SalesEngine'
 $contentDir = Join-Path $projectRoot 'Assets\StreamingAssets\SalesEngine\content'
-$assemblies = 'SalesEngine', 'SalesEngine.Content', 'SalesEngine.AI'
+$assemblies = 'SalesEngine', 'SalesEngine.Content', 'SalesEngine.AI', 'SalesEngine.Voice', 'SalesEngine.Voice.ElevenLabs'
 
 # Assemblies Unity (Mono, .NET Standard 2.1 + BCL extensions) provides itself.
 $allowedReferences = @(
@@ -33,7 +34,7 @@ $allowedReferences = @(
     'Microsoft.Bcl.AsyncInterfaces', 'System.Runtime.CompilerServices.Unsafe'
 ) + $assemblies
 
-foreach ($project in 'SalesEngine.Content', 'SalesEngine.AI') {
+foreach ($project in 'SalesEngine.Content', 'SalesEngine.AI', 'SalesEngine.Voice.ElevenLabs') {
     $csproj = Join-Path $EnginePath "src\$project\$project.csproj"
     & dotnet build $csproj -f netstandard2.1 -c $Configuration --nologo -v quiet
     if ($LASTEXITCODE -ne 0) { throw "dotnet build failed for $project" }

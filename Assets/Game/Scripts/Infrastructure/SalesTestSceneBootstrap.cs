@@ -28,7 +28,31 @@ namespace SalesSim.Infrastructure
         {
             var (session, scenarios) = CreateEngine();
             var save = JsonFileGameStateStore.ForGame(message => Debug.Log(message), message => Debug.LogWarning(message));
+            runLoop.Conversation.SetSpeechInput(CreateSpeechInput());
             runLoop.Configure(session, scenarios, new PlayerProfile(playerName, playerCompany), save);
+        }
+
+        /// <summary>
+        /// Push-to-talk through the engine's ElevenLabs speech-to-text when SALESSIM_ELEVENLABS_API_KEY is set
+        /// (environment or .env, never in the project); otherwise speech input is shown as not set up and typing works as before.
+        /// </summary>
+        private ISpeechInput CreateSpeechInput()
+        {
+            try
+            {
+                return ElevenLabsSpeechInput.Create(LoadSettings().Get, new UnityMicrophone(), message => Debug.Log(message));
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError($"Speech input could not be set up, typing only: {exception.Message}", this);
+                return new UnavailableSpeechInput("Spracheingabe konnte nicht eingerichtet werden (siehe Console).");
+            }
+        }
+
+        private static LocalSettings LoadSettings()
+        {
+            var projectRoot = Path.GetDirectoryName(UnityEngine.Application.dataPath);
+            return LocalSettings.Load(Path.Combine(projectRoot, ".env"));
         }
 
         private (ISalesGameSession, IScenarioSource) CreateEngine()
@@ -36,8 +60,7 @@ namespace SalesSim.Infrastructure
             try
             {
                 var contentDirectory = Path.Combine(UnityEngine.Application.streamingAssetsPath, "SalesEngine", "content");
-                var projectRoot = Path.GetDirectoryName(UnityEngine.Application.dataPath);
-                var settings = LocalSettings.Load(Path.Combine(projectRoot, ".env"));
+                var settings = LoadSettings();
                 var session = SalesEngineGameSession.Create(contentDirectory, settings.Get, message => Debug.Log(message));
                 var scenarios = new EngineScenarioSource(contentDirectory, generationPool);
                 // The seed window takes seconds to build; do it while the player looks at the setup.
