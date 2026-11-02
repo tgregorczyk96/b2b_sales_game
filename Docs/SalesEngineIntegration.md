@@ -139,7 +139,17 @@ Die Figur auf dem Bildschirm ist der **Kunde** (Salon-Inhaberin aus dem Szenario
 - **Verdrahtung:** „Sales Sim/Build Game Loop UI“ (oder `-executeMethod SalesSim.Editor.GameLoopUiBuilder.Build`) trägt die jeweils höchste `_vNN`-Version pro Zustand in `CharacterView.sprites` ein. Code der Zustandslogik wurde nicht geändert.
 - **Test:** `GameLoopTests.EveryCharacterState_ShowsItsOwnFullCanvasSprite` prüft, dass jeder Zustand sein eigenes, nicht beschnittenes Sprite zeigt.
 - **Visuelle Prüfung:** Ein temporärer PlayMode-Lauf hat den Loop mit gescripteter Session in PNGs gerendert und wurde danach wieder gelöscht. Geprüft: Idle → Speaking → Thinking → Positive → VeryPositive → Negative → VeryNegative → Result Screen → Verkauf (Guthaben 0 → 700 €) → Nächster Run (Idle, Guthaben bleibt). Alle Zustände wurden korrekt angezeigt.
-- **Bekannte Schwächen:** Bei Positive ist der Mund leicht offen, gewünscht war ein geschlossenes Lächeln. Der Hintergrundton schwankte zwischen den FLUX-Bildern minimal, durch die Freistellung ist das nicht sichtbar. Thinking/VeryPositive/VeryNegative ändern die Armhaltung, die Silhouette springt dort also bewusst. Der Szenen-Hintergrund ist noch leer (`Art/Generated/Backgrounds`).
+- **Bekannte Schwächen:** Bei Positive ist der Mund leicht offen, gewünscht war ein geschlossenes Lächeln. Der Hintergrundton schwankte zwischen den FLUX-Bildern minimal, durch die Freistellung ist das nicht sichtbar. Thinking/VeryPositive/VeryNegative ändern die Armhaltung, die Silhouette springt dort also bewusst. Der Szenen-Hintergrund kam im Art-Pass vom 2026-10-07 dazu (siehe unten).
+
+## Szenen-Hintergrund (FLUX, Art-Pass 2026-10-07)
+
+- **Asset:** `Assets/Game/Art/Generated/Backgrounds/hair-salon_modern_v01.png` (1920×1080) mit Sidecar-JSON. Leerer, moderner Friseursalon ohne Personen und ohne lesbare Texte/Logos. Links stehen zwei Stationen mit Spiegeln, Stühlen und Produkten hinter der Figur, rechts eine ruhige, helle Wand mit Fenster hinter Chat, Guidance und Debug.
+- **Erzeugung:** FLUX.2 [max], T2I, Seed 83514, 1920×1088, Request `791f5cc7-49c2-476f-9ec3-f7bb3c61cc92`. Stil-Beschreibung wie bei der Figur. Ausgewählt aus 2 Kandidaten mit demselben Prompt; Seed 51207 wurde verworfen, weil rechts ein unruhiges Fenstergitter und ein volles Regal genau hinter der UI lagen. Nachbearbeitung: 4 px oben/unten gecroppt auf exakt 16:9, keine Skalierung, kein Übermalen.
+- **Import/Verdrahtung:** `GameLoopUiBuilder` (`BackgroundSubject = "hair-salon"`) nimmt die höchste `_vNN`-Version. Sprite Single, keine Mipmaps, **High-Quality-Kompression** (die Standardkompression erzeugt Banding auf den weichen Wandverläufen). Das `Background`-Image wird zur Laufzeit abgedunkelt (Tint 0.55/0.55/0.6), die Datei selbst bleibt unverändert.
+- **Lesbarkeit:** Nur wenn ein Hintergrund verdrahtet ist, setzt der Builder: DebugPanel-Deckkraft 0.3 → 0.6, dezente dunkle Flächen hinter `RunLabel`, `BalanceLabel` und `StateLabel` (Namen `…Backing`, nicht klickbar). Result- und Setup-Panel sind jetzt voll deckend: Das Projekt blendet im Linear-Farbraum, deshalb schien bei 0.98 der Chat sichtbar durch.
+- **Figur:** Der Body reicht jetzt bis zur Oberkante der Eingabeleiste (Anker `0, -0.147, 1, 1` in der CharacterArea). Die Kopfhöhe bleibt gleich, die Hüft-Schnittkante liegt hinter der Eingabe statt frei im Raum. Die Figur ist dadurch etwa 29 % größer.
+- **Visuelle Prüfung:** Wie beim Character-Pass hat ein temporärer PlayMode-Lauf mit gescripteter Session PNGs gerendert und wurde danach wieder gelöscht. Geprüft wurden Setup, Idle, Thinking, VeryPositive, VeryNegative, Guidance mit Hinweis + Mehr Hinweis + Beispiel und der Result Screen.
+- **Bekannte Schwächen:** Die Outlines im Hintergrund sind etwas feiner als bei der Figur. Im Setup ist die `RunLabel`-Fläche leer sichtbar (gedimmt, weil noch kein Run läuft). Die Flaschen im Regal schimmern leicht durch das Debug-Panel. Bei anderen Seitenverhältnissen als 16:9 kann `preserveAspect` die Figur so verkleinern, dass zwischen Hüfte und Eingabe ein Spalt entsteht.
 
 ## Live-Guidance (Silent-Training)
 
@@ -201,3 +211,19 @@ Kommandozeile (Editor muss geschlossen sein):
 > öffnet danach „Untitled“, und Play zeigt **nichts**. Nach einem Batchmode-Lauf im Editor `Assets/Game/Scenes/SalesTestScene.unity`
 > öffnen (oder die Datei wieder auf diese Szene setzen). `SalesTestScene` ist Index 0 der Build Settings, ein gebautes
 > Spiel startet daher immer mit ihr.
+>
+> Ist 2026-10-07 nach dem Background-Pass erneut passiert: Der letzte Batchmode-Lauf war ein PlayMode-`-runTests`. Der
+> Test Runner stellt am Ende seine Backup-Szene wieder her, das ist die leere Startszene, und beim Beenden steht dann
+> `sceneSetups: []` in der Datei (reproduzierbar). Ein reiner `-executeMethod`-Builder-Lauf hinterlässt `SalesTestScene`.
+> Nach **jedem** Testlauf im Batchmode, bei geschlossenem Editor, diesen Inhalt wiederherstellen:
+>
+> ```
+> sceneSetups:
+> - path: Assets/Game/Scenes/SalesTestScene.unity
+>   isLoaded: 1
+>   isActive: 1
+>   isSubScene: 0
+> ```
+>
+> Batchmode-Testläufe können außerdem in `ProjectSettings.asset` das Define `SENTIS_ANALYTICS_ENABLED` entfernen
+> (Paket-Nebeneffekt). Diese Änderung gehört nicht zur Arbeit und wird zurückgesetzt.

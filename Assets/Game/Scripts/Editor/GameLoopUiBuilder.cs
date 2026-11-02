@@ -21,9 +21,9 @@ namespace SalesSim.Editor
         private const string CharacterFolder = "Assets/Game/Art/Generated/Characters";
         private const string BackgroundFolder = "Assets/Game/Art/Generated/Backgrounds";
         public const string CharacterSubject = "customer-salon-owner";
-        public const string BackgroundSubject = "salon-reception";
+        public const string BackgroundSubject = "hair-salon";
 
-        private static readonly Color PanelColor = new Color(0.13f, 0.15f, 0.19f, 0.98f);
+        private static readonly Color PanelColor = new Color(0.13f, 0.15f, 0.19f, 1f); // opaque: the project blends in linear space, 0.98 let the chat show through
         private static readonly Color ButtonColor = new Color(0.93f, 0.94f, 0.96f, 1f);
         private static readonly Color AccentButtonColor = new Color(0.36f, 0.72f, 0.46f, 1f);
 
@@ -34,7 +34,7 @@ namespace SalesSim.Editor
             var root = GameObject.Find("UIRoot").transform;
             var controller = Object.FindAnyObjectByType<SalesConversationController>();
 
-            foreach (var name in new[] { "EndConversationButton", "BalanceLabel", "RunLabel", "ResultOverlay", "SetupOverlay", "GameLoop" })
+            foreach (var name in new[] { "EndConversationButton", "BalanceLabel", "BalanceLabelBacking", "RunLabel", "RunLabelBacking", "ResultOverlay", "SetupOverlay", "GameLoop" })
             {
                 var old = root.Find(name);
                 if (old != null)
@@ -89,7 +89,7 @@ namespace SalesSim.Editor
             Assign(Object.FindAnyObjectByType<SalesSim.Infrastructure.SalesTestSceneBootstrap>(), ("runLoop", loop));
 
             WireCharacterSprites();
-            WireBackground();
+            WireBackground(balance, runLabel);
 
             overlay.transform.SetAsLastSibling();
             setupOverlay.transform.SetAsLastSibling();
@@ -297,17 +297,23 @@ namespace SalesSim.Editor
             so.ApplyModifiedPropertiesWithoutUndo();
             if (entries.Count > 0)
             {
-                // A portrait card fills the character area; the placeholder mouth is not needed with sprites.
+                // The portrait keeps its head height but reaches down to the input bar (screen y 0.18, i.e. -0.147 of the
+                // character area), so the waist crop line hides behind the input instead of floating in the room.
+                // The placeholder mouth is not needed with sprites.
                 var body = (Image)so.FindProperty("body").objectReferenceValue;
-                Anchor(body.rectTransform, 0.04f, 0.11f, 0.96f, 1f);
+                Anchor(body.rectTransform, 0f, -0.147f, 1f, 1f);
             }
 
             Debug.Log($"[GameLoopUiBuilder] Character sprites wired: {entries.Count}");
         }
 
-        private static void WireBackground()
+        /// <summary>
+        /// The scene background plus the small readability fixes a picture behind the UI needs: the debug panel gets more
+        /// opacity and the free-standing labels a dark backing. Without a background sprite nothing changes.
+        /// </summary>
+        private static void WireBackground(TMP_Text balance, TMP_Text runLabel)
         {
-            var sprite = LatestSprite(BackgroundFolder, $"{BackgroundSubject}_");
+            var sprite = LatestSprite(BackgroundFolder, $"{BackgroundSubject}_", highQuality: true);
             var background = GameObject.Find("Background")?.GetComponent<Image>();
             if (sprite == null || background == null)
             {
@@ -317,11 +323,54 @@ namespace SalesSim.Editor
             background.sprite = sprite;
             background.preserveAspect = false;
             background.color = new Color(0.55f, 0.55f, 0.6f, 1f); // dimmed so the UI stays readable
+
+            var debugPanel = GameObject.Find("DebugPanel")?.GetComponent<Image>();
+            if (debugPanel != null)
+            {
+                debugPanel.color = new Color(0f, 0f, 0f, 0.6f);
+            }
+
+            NewBacking(balance);
+            NewBacking(runLabel);
+            var stateLabel = Object.FindAnyObjectByType<CharacterView>()?.transform.Find("StateLabel")?.GetComponent<TMP_Text>();
+            if (stateLabel != null)
+            {
+                NewBacking(stateLabel, 0.3f, 0.7f); // in front of the portrait: only as wide as the state name
+            }
+
             Debug.Log("[GameLoopUiBuilder] Background sprite wired.");
         }
 
+        /// <summary>
+        /// A dark, click-through strip behind a label that sits directly on the background; replaces an earlier one.
+        /// Without <paramref name="minX"/>/<paramref name="maxX"/> it spans the label's width plus a small left margin.
+        /// </summary>
+        private static void NewBacking(TMP_Text label, float? minX = null, float? maxX = null)
+        {
+            var parent = label.transform.parent;
+            var old = parent.Find(label.name + "Backing");
+            if (old != null)
+            {
+                Object.DestroyImmediate(old.gameObject);
+            }
+
+            var backing = NewUi(label.name + "Backing", parent);
+            backing.SetSiblingIndex(label.transform.GetSiblingIndex());
+            Anchor(backing, minX ?? label.rectTransform.anchorMin.x, label.rectTransform.anchorMin.y,
+                maxX ?? label.rectTransform.anchorMax.x, label.rectTransform.anchorMax.y);
+            if (minX == null)
+            {
+                backing.offsetMin = new Vector2(-12f, 0f);
+            }
+
+            var image = backing.gameObject.AddComponent<Image>();
+            image.color = new Color(0f, 0f, 0f, 0.45f);
+            image.raycastTarget = false;
+        }
+
         /// <summary>The highest <c>_vNN</c> PNG with this prefix, imported as a sprite; null if there is none.</summary>
-        private static Sprite LatestSprite(string folder, string prefix)
+        /// <param name="highQuality">Full-screen art: high-quality compression, the default one bands on soft wall gradients.</param>
+        private static Sprite LatestSprite(string folder, string prefix, bool highQuality = false)
         {
             if (!AssetDatabase.IsValidFolder(folder))
             {
@@ -344,15 +393,17 @@ namespace SalesSim.Editor
             }
 
             var importer = (TextureImporter)AssetImporter.GetAtPath(best);
+            var compression = highQuality ? TextureImporterCompression.CompressedHQ : TextureImporterCompression.Compressed;
             // Single, not auto-sliced Multiple: every state keeps the full canvas so the states stay pixel-aligned.
             if (importer.textureType != TextureImporterType.Sprite || importer.spriteImportMode != SpriteImportMode.Single
-                || importer.mipmapEnabled)
+                || importer.mipmapEnabled || importer.textureCompression != compression)
             {
                 importer.textureType = TextureImporterType.Sprite;
                 importer.spriteImportMode = SpriteImportMode.Single;
                 importer.mipmapEnabled = false;
                 importer.alphaIsTransparency = true;
                 importer.maxTextureSize = 2048;
+                importer.textureCompression = compression;
                 importer.SaveAndReimport();
             }
 

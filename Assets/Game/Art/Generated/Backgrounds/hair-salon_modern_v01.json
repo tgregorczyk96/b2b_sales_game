@@ -1,0 +1,22 @@
+{
+  "provider": "Black Forest Labs",
+  "model": "flux2_max",
+  "prompt": "Background illustration for a 2D business training game: the empty interior of a modern, friendly hair salon in a German town, seen from a natural standing eye level, wide 16:9 view, no people at all. Left third of the image: two styling stations against the wall, each with a large rounded rectangular mirror, a black leather hydraulic salon chair and a light oak counter with a few neatly arranged unlabeled bottles, combs and a small potted plant; the mirrors only show soft, blurred reflections of the empty room. Center: open floor of light herringbone oak parquet, two warm brass pendant lamps hanging from the ceiling. Right half of the image: deliberately calm and simple, a plain softly lit warm off-white plaster wall with a slim sage-green wooden shelf holding a few unlabeled product jars low down near the floor, a large frosted window letting in soft diffused daylight, lots of quiet empty wall space with low contrast and little detail. Colour palette: warm beige, cream, light oak, muted sage green, soft charcoal grey accents, a touch of mustard yellow. Modern clean 2D vector illustration style like a polished mobile game or editorial illustration: smooth flat colour shapes with soft cel shading, clean dark-brown outlines of even weight, semi-realistic proportions, approachable and professional, not photorealistic, not exaggerated cartoon. Soft, clean, even interior lighting. Slightly soft and muted overall so characters and UI can be placed in front of it. No text, no lettering, no logos, no signs, no posters with writing.",
+  "seed": 83514,
+  "width": 1920,
+  "height": 1080,
+  "generatedAt": "2026-10-07",
+  "editedAfterGeneration": false,
+  "notes": "Background for the hair-salon scenario (customer-salon-owner). Picked from 2 text-to-image candidates with the identical prompt (seed 51207, request 778df6d5-1510-487f-9b81-6153adac3cd4, rejected: busy window grid and a full product shelf on the right, right where chat/debug/send sit). Chosen for its calm, nearly empty right wall behind the UI and the styling stations on the left behind the character.",
+  "requestId": "791f5cc7-49c2-476f-9ec3-f7bb3c61cc92",
+  "derivation": "text-to-image (scene background)",
+  "referenceRequestId": null,
+  "fluxParameters": {
+    "width": 1920,
+    "height": 1088,
+    "safety_tolerance": 2,
+    "output_format": "jpeg",
+    "interface": "BFL MCP (mcp.bfl.ai)"
+  },
+  "postProcessing": "Generated at 1920x1088 (FLUX.2 sizes in multiples of 16); centre-cropped 4 px top and bottom to 1920x1080 (exact 16:9, no scaling, no distortion). Re-encoded JPEG -> PNG. No paint-over. In Unity the image is tinted darker by GameLoopUiBuilder for UI readability (render-time only, file unchanged)."
+}
