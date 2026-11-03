@@ -1,6 +1,6 @@
 # Sales Engine ↔ Unity – Integration
 
-Stand: 2026-10-06 · Unity 6000.5.2f1 · Engine `tgregorczyk96/sales_engine`, `main@029e3e7` (Branch `feature/unity-netstandard-targets` am 2026-11-02 per Fast-Forward gemergt)
+Stand: 2026-11-03 · Unity 6000.5.2f1 · Engine `tgregorczyk96/sales_engine`, `feature/review-stand-direct-sale@ba32a13` (Bewertungsaufsteller; davor `main@029e3e7`)
 
 ## Kurzfassung
 
@@ -216,6 +216,15 @@ Die Figur auf dem Bildschirm ist der **Kunde** (Salon-Inhaberin aus dem Szenario
   - Unity EditMode: `SalesEngineGameSessionTests` +9 (Workspace-Header, `WorkspaceRequired`, 401/403 → `Authentication` ohne Key im Log, Timeout, Netzwerkfehler, ungültige Workspace-ID, Wiederholung nach Fehler), `LocalSettingsTests` (4: `.env` lesen, neuer Key beim nächsten Laden, Umgebungsvariable gewinnt und wird gemeldet, nicht gesetzt); gesamt 129 bestanden, 3 übersprungen (explizite Live-Tests).
   - Unity PlayMode: `CustomerReplyFailureTests` (9: Hinweis je Fehlerart, Eingabe frei, kein erfundener Kunde, Retry = normaler Zug mit Antwort, kein doppelter Zug, unerwarteter Fehler, Abbruch blockiert nicht); gesamt 82 bestanden, 1 übersprungen (`SalesEngineSmokeTest`, explizit).
   - Live (`SalesEngineSmokeTest`, angepasst an das Run-Setup, ohne Savegame): mit dem aktuellen Key und ohne Workspace-ID → HTTP 400, im Spiel erscheint der Workspace-Hinweis. Nach dem Eintragen der Workspace-ID: ein minimaler Live-Aufruf über denselben `AnthropicMessagesClient` mit Key + Workspace aus der `.env` → HTTP 200, Antwort gelesen (2026-11-02). Ein vollständiger Zug im Unity-Editor (Play) ist noch durch den Spieler zu bestätigen; der Batchmode-Lauf der Projektkopie scheiterte an Windows-Pfadlängen, nicht am Code.
+
+## Bewertungsaufsteller vor Ort (2026-11-03)
+
+- **Engine (Quelle aller Regeln):** siehe `sales_engine/docs/direct-sale.md`. Aufsteller = eigenes Produkt, 39,00 € einmalig; Kauf, Vor-Ort-Einrichtung und Zahlung (Überweisung, PayPal, bar, Karte/Stripe-Checkout; Status offen/bestätigt/fehlgeschlagen) sind getrennte Sachverhalte; Website optional danach. Neuer Pool `review-stand-visit` (nur Besuche, nur Aufsteller, Website als Folgeangebot).
+- **Boundary:** `SalesSessionState.ProductSale` (`ProductSaleState`, 1:1 aus `ConversationSession.DirectSale`), `HasLeadOffer` (beim Aufsteller erst nach Wechsel zur Website), `Commitment` = Vereinbarung des Lead-Angebots (Website). `IScenarioSource.Kinds/Select` für die Wahl „Website & Co.“ / „Bewertungsaufsteller (Vor-Ort-Besuch)“.
+- **Economy:** `ProductSettlement` bucht bei Run-Ende nur `BookedRevenue` (bestätigte Zahlung), offene/fehlgeschlagene Zahlungen werden nur angezeigt, Trainingsläufe buchen nichts. `LeadEvaluator`: ohne Lead-Angebot kein Lead. Aufsteller + Website-Lead = 39 € + Payout, nie doppelt.
+- **Runs:** „schon gespielt“ gilt jetzt pro Szenario-Id (Seed + Art); alte Spielstände ohne `playedScenarios` behandeln ihre Seeds weiter in allen Arten als gespielt.
+- **UI (Builder „Sales Sim/Build Game Loop UI“):** Auswahl der Art im Setup, Live-Statuszeile (`SaleStatusLabel`), Produktblock im Result Screen (verkauft, Einrichtung, Zahlungsmethode, Zahlungsstatus, weiterer Verlauf, fragwürdige Produktaussagen).
+- **Tests:** Engine 1.649 bestanden / 26 übersprungen (+85). Unity EditMode 147/3 übersprungen (+18, `ReviewStandSaleTests`), PlayMode 91/1 übersprungen (+9, `ReviewStandFlowTests`). Zwei Live-Läufe gegen Anthropic bestanden (Ablehnung bei Zeitdruck; Kauf → Einrichtung → offene Überweisung → Website).
 
 ## Weitere offene Punkte
 

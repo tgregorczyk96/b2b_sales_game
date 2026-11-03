@@ -3,6 +3,7 @@ namespace SalesSim.Application
     /// <summary>
     /// Read-only snapshot of a sales conversation as reported by the engine.
     /// Stage, Intent, EndReason and Commitment are kept as opaque strings so Unity does not mirror the engine's domain model.
+    /// A product sold directly (purchase, setup, payment) comes as <see cref="ProductSale"/>.
     /// </summary>
     public sealed class SalesSessionState
     {
@@ -19,8 +20,20 @@ namespace SalesSim.Application
         /// <summary>Why the conversation ended, as the engine reports it (e.g. "Completed"); empty while it runs.</summary>
         public string EndReason { get; }
 
-        /// <summary>The next step the engine considers agreed (e.g. "Appointment"); empty when none was secured.</summary>
+        /// <summary>
+        /// The next step the engine considers agreed for the lead offer (e.g. "Appointment"); empty when none was secured. In a
+        /// conversation with a directly sold product this is the follow-up offer's commitment — buying the product is not a lead.
+        /// </summary>
         public string Commitment { get; }
+
+        /// <summary>
+        /// Whether the conversation was about an offer that is sold as a lead (e.g. a website): always for ordinary scenarios; with
+        /// a directly sold product only once the player moved on to the follow-up offer. Without it there is no lead to price.
+        /// </summary>
+        public bool HasLeadOffer { get; }
+
+        /// <summary>The directly sold product as the engine reports it; <c>null</c> in ordinary scenarios.</summary>
+        public ProductSaleState ProductSale { get; }
 
         public SalesSessionState(
             string sessionId,
@@ -30,7 +43,9 @@ namespace SalesSim.Application
             string intent,
             bool isConversationOver,
             string endReason = "",
-            string commitment = "")
+            string commitment = "",
+            ProductSaleState productSale = null,
+            bool hasLeadOffer = true)
         {
             SessionId = sessionId ?? string.Empty;
             CustomerMessage = customerMessage ?? string.Empty;
@@ -40,6 +55,8 @@ namespace SalesSim.Application
             IsConversationOver = isConversationOver;
             EndReason = endReason ?? string.Empty;
             Commitment = commitment ?? string.Empty;
+            ProductSale = productSale;
+            HasLeadOffer = hasLeadOffer;
         }
     }
 }

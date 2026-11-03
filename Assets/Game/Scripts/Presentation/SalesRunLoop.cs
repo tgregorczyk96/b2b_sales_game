@@ -12,7 +12,9 @@ namespace SalesSim.Presentation
     /// scenarios and difficulties come from the engine via <see cref="IScenarioSource"/>. A rerun of a seed is a
     /// training run (<see cref="RunInfo.IsRerun"/>): evaluated as usual, never paid out. Wallet and run registry are the
     /// runtime state; with an <see cref="IGameStateStore"/> they are loaded on <see cref="Configure"/> and saved whenever
-    /// a run starts (its seed counts as played from then on), ends (score) or a lead is sold.
+    /// a run starts (its seed counts as played from then on), ends (score) or a lead is sold. A product sold directly in the
+    /// conversation (e.g. the review stand) is product revenue: the engine's confirmed amount is credited when the run ends
+    /// (<see cref="ProductSettlement"/>), open payments are only shown; the lead is priced separately, so nothing is booked twice.
     /// </summary>
     public sealed class SalesRunLoop : MonoBehaviour
     {
@@ -32,6 +34,7 @@ namespace SalesSim.Presentation
         private IScenarioSource scenarios;
         private PlayerProfile player;
         private LeadSale currentLead;
+        private ProductSettlement currentProduct;
 
         public PlayerWallet Wallet => wallet;
 
@@ -43,6 +46,9 @@ namespace SalesSim.Presentation
         public RunInfo CurrentRun { get; private set; }
 
         public LeadSale CurrentLead => currentLead;
+
+        /// <summary>The directly sold product of the finished run (booked when the run ended); <c>null</c> while a run is played.</summary>
+        public ProductSettlement CurrentProduct => currentProduct;
 
         private void Awake()
         {
@@ -86,12 +92,14 @@ namespace SalesSim.Presentation
             currentLead = null;
             UpdateBalance();
             setupView.SetDifficulties(scenarios.Difficulties);
+            setupView.SetKinds(scenarios.Kinds, scenarios.SelectedKind);
             ShowSetup();
         }
 
         /// <summary>Starts a run of <paramref name="seed"/> (a random one from the engine when <c>null</c>).</summary>
         public RunInfo StartNewRun(string difficulty, int? seed = null)
         {
+            UseSelectedKind();
             var chosen = seed ?? scenarios.PickRandomSeed();
             return StartRun(runs.Begin(chosen, difficulty, scenarios.ScenarioIdFor(chosen)));
         }
@@ -107,6 +115,7 @@ namespace SalesSim.Presentation
         {
             CurrentRun = run;
             currentLead = null;
+            currentProduct = null;
             resultView.Hide();
             setupView.Hide();
             runLabel.text = RunResultView.RunSummary(run, 0f, null);
@@ -140,24 +149,39 @@ namespace SalesSim.Presentation
 
         private void OnRandomSeedRequested()
         {
+            UseSelectedKind();
             setupView.SeedText = scenarios.PickRandomSeed().ToString(CultureInfo.InvariantCulture);
             setupView.ShowMessage(string.Empty);
         }
 
         private void OnConversationEnded(SalesSessionState finalState)
         {
+            var training = CurrentRun != null && CurrentRun.IsRerun;
             var evaluation = LeadEvaluator.Evaluate(finalState, economy);
-            currentLead = new LeadSale(evaluation, CurrentRun != null && CurrentRun.IsRerun);
+            currentLead = new LeadSale(evaluation, training);
+            currentProduct = ProductSettlement.Of(finalState, training);
+            currentProduct.CreditTo(wallet); // received product revenue only; nothing for open payments or training runs
             float? previousScore = null;
             if (CurrentRun != null)
             {
-                previousScore = runs.LastScore(CurrentRun.Seed);
-                runs.RecordScore(CurrentRun.Seed, evaluation.Score);
+                previousScore = runs.LastScore(CurrentRun);
+                runs.RecordScore(CurrentRun, evaluation.Score);
             }
 
             Save();
+            UpdateBalance();
 
-            resultView.Show(currentLead, economy.closerShare, wallet.Balance, conversation.GuidanceUsage, CurrentRun, previousScore);
+            resultView.Show(currentLead, economy.closerShare, wallet.Balance, conversation.GuidanceUsage, CurrentRun, previousScore, currentProduct);
+        }
+
+        /// <summary>New runs and random seeds use the scenario kind chosen in the setup (website or review stand on site).</summary>
+        private void UseSelectedKind()
+        {
+            var kind = setupView.SelectedKind;
+            if (kind.Length > 0 && kind != scenarios.SelectedKind)
+            {
+                scenarios.Select(kind);
+            }
         }
 
         private void OnSellRequested()

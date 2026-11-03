@@ -15,6 +15,11 @@ namespace SalesSim.Presentation
         [SerializeField] private TMP_Text stageText;
         [SerializeField] private TMP_Text intentText;
 
+        /// <summary>Live status of a directly sold product (purchase, setup, payment); optional, hidden without a product.</summary>
+        [SerializeField] private TMP_Text saleText;
+
+        public string SaleStatus => saleText == null ? string.Empty : saleText.text;
+
         public void Render(SalesSessionState state)
         {
             trustText.text = $"Trust: {Format(state.Indicators.Trust)}";
@@ -23,6 +28,11 @@ namespace SalesSim.Presentation
             patienceText.text = $"Patience: {Format(state.Indicators.Patience)}";
             stageText.text = $"Stage: {OrDash(state.Stage)}";
             intentText.text = $"Intent: {OrDash(state.Intent)}";
+            if (saleText != null)
+            {
+                saleText.text = ProductSaleText.Status(state.ProductSale);
+                saleText.gameObject.SetActive(state.ProductSale != null);
+            }
         }
 
         private static string Format(float value) => value.ToString("0.##", CultureInfo.InvariantCulture);

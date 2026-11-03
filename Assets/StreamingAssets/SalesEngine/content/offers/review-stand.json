@@ -1,5 +1,19 @@
 {
   "id": "review-stand",
-  "displayName": "Review Stand",
-  "capabilities": [ "review-collection" ]
+  "displayName": "Google-Bewertungsaufsteller",
+  "capabilities": [ "review-collection" ],
+  "directSale": {
+    "price": 39.00,
+    "currency": "EUR",
+    "paymentMethods": [ "BankTransfer", "PayPal", "Cash", "Card" ],
+    "setupOnSite": true,
+    "answers": [
+      { "question": "AppRequired", "holds": false, "statement": "Ihre Kundinnen brauchen keine App: NFC öffnet den Link direkt, den QR-Code liest die normale Handykamera." },
+      { "question": "IphoneSupported", "holds": true, "statement": "Das funktioniert mit iPhones genauso wie mit Android – per NFC oder über die Kamera mit dem QR-Code." },
+      { "question": "WorksWithoutNfc", "holds": true, "statement": "Wer kein NFC hat, scannt einfach den QR-Code mit der Kamera – beides führt zur selben Bewertungsseite." },
+      { "question": "RecurringCosts", "holds": false, "statement": "Der Aufsteller kostet einmalig 39,00 €, es gibt keine laufenden Kosten." },
+      { "question": "SetupAppointmentRequired", "holds": false, "statement": "Wir richten den Aufsteller direkt jetzt vor Ort ein, ein extra Termin ist nicht nötig." }
+    ],
+    "followUpOffers": [ "website" ]
+  }
 }

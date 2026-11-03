@@ -34,7 +34,7 @@ namespace SalesSim.Editor
             var root = GameObject.Find("UIRoot").transform;
             var controller = Object.FindAnyObjectByType<SalesConversationController>();
 
-            foreach (var name in new[] { "EndConversationButton", "BalanceLabel", "BalanceLabelBacking", "RunLabel", "RunLabelBacking", "ResultOverlay", "SetupOverlay", "GameLoop" })
+            foreach (var name in new[] { "EndConversationButton", "BalanceLabel", "BalanceLabelBacking", "RunLabel", "RunLabelBacking", "SaleStatusLabel", "ResultOverlay", "SetupOverlay", "GameLoop" })
             {
                 var old = root.Find(name);
                 if (old != null)
@@ -57,6 +57,14 @@ namespace SalesSim.Editor
             runLabel.alignment = TextAlignmentOptions.MidlineLeft;
             Anchor(runLabel.rectTransform, 0.04f, 0.962f, 0.4f, 0.998f);
 
+            // Live status of a product sold directly (review stand): purchase, setup, payment. Hidden in other runs.
+            var saleStatus = NewText("SaleStatusLabel", root, 18f, new Color(0.55f, 0.9f, 0.62f));
+            saleStatus.alignment = TextAlignmentOptions.TopLeft;
+            saleStatus.overflowMode = TextOverflowModes.Ellipsis;
+            Anchor(saleStatus.rectTransform, 0.04f, 0.9f, 0.4f, 0.96f); // under the run label, above the customer
+            saleStatus.gameObject.SetActive(false);
+            Assign(Object.FindAnyObjectByType<SalesDebugPanelView>(), ("saleText", saleStatus));
+
             var (overlay, resultView) = BuildResultOverlay(root);
             var (setupOverlay, setup, buttons) = BuildSetupOverlay(root);
 
@@ -65,19 +73,28 @@ namespace SalesSim.Editor
             Assign(resultComponent, ("overlay", overlay), ("runText", resultView["Run"]), ("outcomeText", resultView["Outcome"]),
                 ("qualityText", resultView["Quality"]), ("valueText", resultView["Value"]), ("closerText", resultView["Closer"]),
                 ("payoutText", resultView["Payout"]), ("balanceText", resultView["Balance"]), ("guidanceText", resultView["Guidance"]),
+                ("productText", resultView["Product"]),
                 ("sellButton", resultView["SellButton"]), ("rerunButton", resultView["RerunButton"]),
                 ("nextRunButton", resultView["NextRunButton"]));
 
             var setupComponent = loopObject.AddComponent<RunSetupView>();
-            Assign(setupComponent, ("overlay", setupOverlay), ("seedInput", setup["SeedInput"]), ("randomSeedButton", setup["RandomSeedButton"]),
-                ("newRunButton", setup["NewRunButton"]), ("rerunButton", setup["RerunButton"]), ("lastRunText", setup["LastRun"]),
-                ("messageText", setup["Message"]));
+            Assign(setupComponent, ("overlay", setupOverlay), ("seedInput", (Object)setup["SeedInput"]), ("randomSeedButton", (Object)setup["RandomSeedButton"]),
+                ("newRunButton", (Object)setup["NewRunButton"]), ("rerunButton", (Object)setup["RerunButton"]), ("lastRunText", (Object)setup["LastRun"]),
+                ("messageText", (Object)setup["Message"]));
             var setupSo = new SerializedObject(setupComponent);
             var difficultyButtons = setupSo.FindProperty("difficultyButtons");
             difficultyButtons.arraySize = buttons.Count;
             for (var i = 0; i < buttons.Count; i++)
             {
                 difficultyButtons.GetArrayElementAtIndex(i).objectReferenceValue = buttons[i];
+            }
+
+            var kinds = (List<Button>)setup["KindButtons"];
+            var kindButtons = setupSo.FindProperty("kindButtons");
+            kindButtons.arraySize = kinds.Count;
+            for (var i = 0; i < kinds.Count; i++)
+            {
+                kindButtons.GetArrayElementAtIndex(i).objectReferenceValue = kinds[i];
             }
 
             setupSo.ApplyModifiedPropertiesWithoutUndo();
@@ -107,7 +124,7 @@ namespace SalesSim.Editor
             overlay.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.62f); // also blocks clicks behind it
 
             var panel = NewUi("Panel", overlay);
-            Anchor(panel, 0.27f, 0.12f, 0.73f, 0.88f);
+            Anchor(panel, 0.25f, 0.04f, 0.75f, 0.96f); // tall enough for the product block of a review stand run
             panel.gameObject.AddComponent<Image>().color = PanelColor;
             var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.padding = new RectOffset(40, 40, 32, 32);
@@ -127,6 +144,12 @@ namespace SalesSim.Editor
             {
                 parts[part] = NewText(part, panel, 26f, new Color(0.85f, 0.88f, 0.93f));
             }
+
+            // A product sold directly (review stand): sold, set up, payment method and status, revenue, further course.
+            var product = NewText("Product", panel, 22f, new Color(0.85f, 0.88f, 0.93f));
+            product.margin = new Vector4(0f, 6f, 0f, 6f);
+            product.gameObject.SetActive(false);
+            parts["Product"] = product;
 
             var payout = NewText("Payout", panel, 30f, new Color(0.55f, 0.9f, 0.62f));
             payout.fontStyle = FontStyles.Bold;
@@ -161,15 +184,15 @@ namespace SalesSim.Editor
         /// The run setup in front of every run: difficulty buttons (labelled at runtime with the engine's presets), seed
         /// field (empty = random) with a dice button, last run, message line, "Seed wiederholen" and "Neuer Run".
         /// </summary>
-        private static (GameObject Overlay, Dictionary<string, Object> Parts, List<Button> Difficulties) BuildSetupOverlay(Transform root)
+        private static (GameObject Overlay, Dictionary<string, object> Parts, List<Button> Difficulties) BuildSetupOverlay(Transform root)
         {
-            var parts = new Dictionary<string, Object>();
+            var parts = new Dictionary<string, object>();
             var overlay = NewUi("SetupOverlay", root);
             Anchor(overlay, 0f, 0f, 1f, 1f);
             overlay.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.62f); // also blocks clicks behind it
 
             var panel = NewUi("Panel", overlay);
-            Anchor(panel, 0.3f, 0.17f, 0.7f, 0.83f);
+            Anchor(panel, 0.28f, 0.1f, 0.72f, 0.9f);
             panel.gameObject.AddComponent<Image>().color = PanelColor;
             var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.padding = new RectOffset(40, 40, 32, 32);
@@ -182,6 +205,17 @@ namespace SalesSim.Editor
             var title = NewText("Title", panel, 40f, Color.white);
             title.fontStyle = FontStyles.Bold;
             title.text = "Neuer Run";
+
+            // What is sold in the run: labelled at runtime with the engine's scenario kinds (hidden when there is only one).
+            NewText("KindLabel", panel, 22f, new Color(0.72f, 0.8f, 0.92f)).text = "Was verkaufst du?";
+            var kindRow = NewRow("KindButtons", panel, 64f);
+            var kinds = new List<Button>();
+            for (var i = 0; i < 2; i++)
+            {
+                kinds.Add(NewButton($"Kind{i}", kindRow, i == 0 ? "Website & Co." : "Bewertungsaufsteller", ButtonColor, 22f).GetComponent<Button>());
+            }
+
+            parts["KindButtons"] = kinds;
 
             NewText("DifficultyLabel", panel, 22f, new Color(0.72f, 0.8f, 0.92f)).text = "Schwierigkeit";
             var difficultyRow = NewRow("DifficultyButtons", panel, 64f);

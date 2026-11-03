@@ -10,7 +10,8 @@ namespace SalesSim.Presentation
 {
     /// <summary>
     /// Run setup before a conversation: difficulty (the engine's presets), seed (empty = random, or typed in, or rolled
-    /// with the dice button), "Neuer Run" and "Seed wiederholen". Display and input only — the run loop starts runs.
+    /// with the dice button), what is sold (the engine's scenario kinds, e.g. website or review stand on site), "Neuer Run" and
+    /// "Seed wiederholen". Display and input only — the run loop starts runs.
     /// </summary>
     public sealed class RunSetupView : MonoBehaviour
     {
@@ -19,6 +20,7 @@ namespace SalesSim.Presentation
 
         [SerializeField] private GameObject overlay;
         [SerializeField] private Button[] difficultyButtons;
+        [SerializeField] private Button[] kindButtons = new Button[0];
         [SerializeField] private TMP_InputField seedInput;
         [SerializeField] private Button randomSeedButton;
         [SerializeField] private Button newRunButton;
@@ -27,7 +29,9 @@ namespace SalesSim.Presentation
         [SerializeField] private TMP_Text messageText;
 
         private readonly List<string> difficulties = new List<string>();
+        private readonly List<string> kinds = new List<string>();
         private int selected;
+        private int selectedKind;
 
         /// <summary>"Neuer Run" with the selected difficulty and the seed field's text (empty = random).</summary>
         public event Action<string, string> NewRunRequested;
@@ -39,6 +43,9 @@ namespace SalesSim.Presentation
         public bool IsVisible => overlay.activeSelf;
 
         public string SelectedDifficulty => selected < difficulties.Count ? difficulties[selected] : string.Empty;
+
+        /// <summary>The selected scenario kind's id; empty when the scene has no kind buttons or only one kind exists.</summary>
+        public string SelectedKind => selectedKind < kinds.Count ? kinds[selectedKind] : string.Empty;
 
         public string SeedText
         {
@@ -64,6 +71,12 @@ namespace SalesSim.Presentation
                 difficultyButtons[i].onClick.AddListener(() => SelectDifficulty(index));
             }
 
+            for (var i = 0; i < kindButtons.Length; i++)
+            {
+                var index = i;
+                kindButtons[i].onClick.AddListener(() => SelectKind(index));
+            }
+
             randomSeedButton.onClick.AddListener(() => RandomSeedRequested?.Invoke());
             newRunButton.onClick.AddListener(() => NewRunRequested?.Invoke(SelectedDifficulty, seedInput.text));
             rerunButton.onClick.AddListener(() => RerunRequested?.Invoke());
@@ -85,6 +98,32 @@ namespace SalesSim.Presentation
             }
 
             SelectDifficulty(Mathf.Clamp(selected, 0, Math.Max(0, difficulties.Count - 1)));
+        }
+
+        /// <summary>Labels the kind buttons with the engine's scenario kinds; surplus buttons are hidden. Keeps the selection.</summary>
+        public void SetKinds(IReadOnlyList<SalesSim.Application.ScenarioKind> available, string selectedId = null)
+        {
+            var previous = SelectedKind;
+            kinds.Clear();
+            for (var i = 0; i < kindButtons.Length; i++)
+            {
+                var used = available != null && i < available.Count && available.Count > 1;
+                kindButtons[i].gameObject.SetActive(used);
+                if (used)
+                {
+                    kinds.Add(available[i].Id);
+                    kindButtons[i].GetComponentInChildren<TMP_Text>().text = available[i].Label;
+                }
+            }
+
+            var wanted = string.IsNullOrEmpty(selectedId) ? previous : selectedId;
+            SelectKind(Math.Max(0, kinds.IndexOf(wanted)));
+        }
+
+        public Button KindButton(string id)
+        {
+            var index = kinds.IndexOf(id);
+            return index < 0 ? null : kindButtons[index];
         }
 
         public Button DifficultyButton(string name)
@@ -115,6 +154,15 @@ namespace SalesSim.Presentation
         public void ShowMessage(string message)
         {
             messageText.text = message ?? string.Empty;
+        }
+
+        private void SelectKind(int index)
+        {
+            selectedKind = index;
+            for (var i = 0; i < kindButtons.Length; i++)
+            {
+                kindButtons[i].image.color = i == selectedKind ? SelectedColor : NormalColor;
+            }
         }
 
         private void SelectDifficulty(int index)

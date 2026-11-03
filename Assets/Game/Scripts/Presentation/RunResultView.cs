@@ -10,7 +10,9 @@ namespace SalesSim.Presentation
     /// <summary>
     /// Overlay after a finished run: which run it was (difficulty, seed, first run or training run), conversation result,
     /// lead quality and value, closer share, payout, and how much live guidance was used (shown only; it does not change
-    /// value or payout). A training run (rerun of a known seed) shows the full evaluation but cannot be sold.
+    /// value or payout). A training run (rerun of a known seed) shows the full evaluation but cannot be sold. A product sold
+    /// directly (e.g. the review stand) gets its own block: sold, set up on site, payment method and status, booked revenue
+    /// and the further course (e.g. the website).
     /// </summary>
     public sealed class RunResultView : MonoBehaviour
     {
@@ -23,6 +25,7 @@ namespace SalesSim.Presentation
         [SerializeField] private TMP_Text payoutText;
         [SerializeField] private TMP_Text balanceText;
         [SerializeField] private TMP_Text guidanceText;
+        [SerializeField] private TMP_Text productText;
         [SerializeField] private Button sellButton;
         [SerializeField] private Button nextRunButton;
         [SerializeField] private Button rerunButton;
@@ -41,6 +44,11 @@ namespace SalesSim.Presentation
 
         public Button RerunButton => rerunButton;
 
+        /// <summary>The product block; empty without a directly sold product.</summary>
+        public string ProductSummary => productText == null ? string.Empty : productText.text;
+
+        public string OutcomeText => outcomeText.text;
+
         private void Awake()
         {
             sellButton.onClick.AddListener(() => SellRequested?.Invoke());
@@ -51,11 +59,25 @@ namespace SalesSim.Presentation
 
         /// <param name="run">The run that ended; <c>null</c> shows no run line.</param>
         /// <param name="previousScore">The lead score of the previous attempt of the same seed, for a rerun.</param>
-        public void Show(LeadSale sale, float closerShare, int balance, GuidanceUsage guidance, RunInfo run = null, float? previousScore = null)
+        /// <param name="product">The directly sold product of the run; <c>null</c> or without product shows no product block.</param>
+        public void Show(
+            LeadSale sale, float closerShare, int balance, GuidanceUsage guidance, RunInfo run = null, float? previousScore = null,
+            ProductSettlement product = null)
         {
             var lead = sale.Evaluation;
             runText.text = RunSummary(run, lead.Score, previousScore);
-            outcomeText.text = $"Gesprächsergebnis: {EndReasonText(lead.EndReason)} · Vereinbarung: {CommitmentText(lead.Commitment)}";
+            var hasProduct = product != null && product.HasProduct;
+            outcomeText.text = hasProduct && product.Sale.FollowUpStarted
+                ? $"Gesprächsergebnis: {EndReasonText(lead.EndReason)} · {product.Sale.FollowUpOffer}-Vereinbarung: {CommitmentText(lead.Commitment)}"
+                : hasProduct
+                    ? $"Gesprächsergebnis: {EndReasonText(lead.EndReason)}"
+                    : $"Gesprächsergebnis: {EndReasonText(lead.EndReason)} · Vereinbarung: {CommitmentText(lead.Commitment)}";
+            if (productText != null)
+            {
+                productText.text = hasProduct ? ProductSaleText.Summary(product) : string.Empty;
+                productText.gameObject.SetActive(hasProduct);
+            }
+
             qualityText.text = $"Lead-Qualität: {QualityText(lead.Quality)} (Score {lead.Score.ToString("0", CultureInfo.InvariantCulture)})";
             valueText.text = $"Lead-Wert: {Euro(lead.Value)}";
             closerText.text = $"Closer-Anteil ({(closerShare * 100f).ToString("0", CultureInfo.InvariantCulture)} %): −{Euro(lead.CloserCut)}";
@@ -144,7 +166,7 @@ namespace SalesSim.Presentation
             }
         }
 
-        private static string CommitmentText(string commitment)
+        public static string CommitmentText(string commitment)
         {
             switch (commitment)
             {

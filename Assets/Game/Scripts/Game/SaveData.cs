@@ -22,6 +22,22 @@ namespace SalesSim.Game
         public bool hasLastRun;
         public SavedRun lastRun = new SavedRun();
 
+        /// <summary>
+        /// Played runs by scenario id (seed + kind, e.g. website or review stand). Added without a version bump: saves without it
+        /// fall back to <see cref="playedSeeds"/> (then a seed counts as played in every kind, as before).
+        /// </summary>
+        public List<string> playedScenarios = new List<string>();
+
+        /// <summary>The last lead score per scenario id; saves without it use <see cref="lastScores"/>.</summary>
+        public List<ScenarioScore> scenarioScores = new List<ScenarioScore>();
+
+        [Serializable]
+        public sealed class ScenarioScore
+        {
+            public string scenarioId = string.Empty;
+            public float score;
+        }
+
         [Serializable]
         public sealed class SeedScore
         {

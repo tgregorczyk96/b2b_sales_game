@@ -1,0 +1,6 @@
+{
+  "id": "review-stand-visit",
+  "base": "hair-salon",
+  "channels": [ "WalkIn" ],
+  "offers": [ "review-stand" ]
+}

@@ -46,7 +46,13 @@ namespace SalesSim.Tests.PlayMode
         {
             Starts++;
             LastStart = request;
-            CurrentState = new SalesSessionState("scripted", "Guten Tag?", Start, "Opening", string.Empty, false);
+            // Like the engine: a review stand visit starts with the product unsold and without a lead offer.
+            var stand = request.ScenarioId.StartsWith(ScriptedScenarioSource.StandKind + ":", StringComparison.Ordinal);
+            var product = stand
+                ? new ProductSaleState("Google-Bewertungsaufsteller", 39m, "EUR", false, false, false, false, true, "NotStarted", 0, 4,
+                    string.Empty, "NotStarted", 0m, 0m, "NotSold", string.Empty, string.Empty)
+                : null;
+            CurrentState = new SalesSessionState("scripted", "Guten Tag?", Start, "Opening", string.Empty, false, string.Empty, string.Empty, product, !stand);
             return Task.FromResult(CurrentState);
         }
 
@@ -59,7 +65,8 @@ namespace SalesSim.Tests.PlayMode
 
         public Task<SalesSessionState> EndSessionAsync(CancellationToken cancellationToken = default)
         {
-            CurrentState = new SalesSessionState("scripted", string.Empty, CurrentState.Indicators, "Ended", CurrentState.Intent, true, "NotStated");
+            CurrentState = new SalesSessionState("scripted", string.Empty, CurrentState.Indicators, "Ended", CurrentState.Intent, true, "NotStated",
+                CurrentState.Commitment, CurrentState.ProductSale, CurrentState.HasLeadOffer);
             return Task.FromResult(CurrentState);
         }
 
@@ -103,6 +110,13 @@ namespace SalesSim.Tests.PlayMode
         {
             CurrentState = new SalesSessionState(
                 "scripted", customerMessage, indicators, over ? "Ended" : "Opening", "Continue", over, endReason, commitment);
+            pending.SetResult(CurrentState);
+        }
+
+        /// <summary>Answers the pending turn with a complete state, e.g. one with a product sale.</summary>
+        public void Answer(SalesSessionState state)
+        {
+            CurrentState = state;
             pending.SetResult(CurrentState);
         }
 

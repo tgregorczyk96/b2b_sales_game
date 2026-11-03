@@ -17,5 +17,13 @@ namespace SalesSim.Infrastructure
         public int PickRandomSeed() => random.Next();
 
         public string ScenarioIdFor(int seed) => $"offline:{seed}";
+
+        public IReadOnlyList<ScenarioKind> Kinds { get; } = new[] { new ScenarioKind("offline", "Offline") };
+
+        public string SelectedKind => "offline";
+
+        public void Select(string kindId)
+        {
+        }
     }
 }

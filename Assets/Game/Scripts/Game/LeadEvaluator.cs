@@ -58,6 +58,7 @@ namespace SalesSim.Game
     /// <item>a next step the engine considers agreed raises the category to a floor (Information → Warm,
     ///       FollowUp → Hot, Appointment/Agreement → Qualified);</item>
     /// <item>a rejection without agreed next step caps it at Cold; an explicit no-contact request makes it Lost;</item>
+    /// <item>without a lead offer in the conversation (only a directly sold product was discussed) there is no lead: Lost;</item>
     /// <item>value = baseLeadValue × category multiplier; closer cut = value × closerShare (rounded).</item>
     /// </list>
     /// Deterministic and monotone: better indicators never give a worse result when everything else is equal.
@@ -80,7 +81,13 @@ namespace SalesSim.Game
                 + settings.patienceWeight * indicators.Patience);
 
             var quality = Max(QualityFromScore(score, settings), FloorFromCommitment(finalState.Commitment));
-            if (finalState.EndReason == "NoContactRequested")
+            if (!finalState.HasLeadOffer)
+            {
+                // Only a directly sold product was discussed (e.g. the review stand): its revenue is booked as product revenue
+                // (ProductSettlement), never as a lead — otherwise the same conversation would be paid twice.
+                quality = LeadQuality.Lost;
+            }
+            else if (finalState.EndReason == "NoContactRequested")
             {
                 quality = LeadQuality.Lost;
             }
