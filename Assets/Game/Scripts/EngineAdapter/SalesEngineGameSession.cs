@@ -322,7 +322,14 @@ namespace SalesSim.EngineAdapter
                 : new WebsitePrototypeState(
                     prototype.Status.ToString(), prototype.Presented, prototype.DemoHandedOver, prototype.IsFollowUp,
                     prototype.State.FeedbackGiven?.ToString() ?? string.Empty, prototype.State.ChangeRequests.Count, prototype.Decision.ToString(),
-                    prototype.Prototype.DemoDays);
+                    prototype.Prototype.DemoDays,
+                    Amounts(prototype.PricesNamed), Amounts(prototype.WrongPrices));
+        }
+
+        private string Amounts(System.Collections.Generic.IReadOnlyList<PriceMention> prices)
+        {
+            var pricing = session.WebsiteOffer?.Pricing;
+            return string.Join(", ", prices.Select(p => pricing != null ? pricing.Format(p.Amount) : DirectSaleTerms.FormatAmount(p.Amount, "EUR")));
         }
 
         /// <summary>The engine's follow-up record once the conversation ended with the demo link and no decision.</summary>

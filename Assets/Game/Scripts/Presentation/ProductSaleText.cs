@@ -104,6 +104,16 @@ namespace SalesSim.Presentation
                 }
             }
 
+            if (prototype.PricesNamed.Length > 0)
+            {
+                text += $"\n• Preise genannt: {prototype.PricesNamed}";
+            }
+
+            if (prototype.WrongPrices.Length > 0)
+            {
+                text += $"\n• Nicht in der Preisliste: {prototype.WrongPrices}";
+            }
+
             text += $"\n• Entscheidung: {DecisionText(prototype.Decision)}";
             if (followUp != null)
             {

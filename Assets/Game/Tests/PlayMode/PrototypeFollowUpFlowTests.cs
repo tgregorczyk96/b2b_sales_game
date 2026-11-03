@@ -127,10 +127,14 @@ namespace SalesSim.Tests.PlayMode
             yield return null;
 
             Send("Mit Ihren Fotos – sollen wir es so umsetzen?");
+            var bought = Draft(followUp: true, feedback: "WantsChanges", decision: "Bought");
             session.Answer(new SalesSessionState("scripted", "Ja, machen wir.", new SalesIndicators(70, 72, 75, 60), "Ended", "Continue", true, "Completed",
-                "Agreement", null, true, Draft(followUp: true, feedback: "WantsChanges", decision: "Bought")));
+                "Agreement", null, true, new WebsitePrototypeState(bought.Status, false, false, true, bought.Feedback, bought.ChangeRequests, bought.Decision, 7,
+                    "799 €, 99 €, 1.499 €", "1.499 €")));
             yield return null;
 
+            Assert.That(result.ProductSummary, Does.Contain("Preise genannt: 799 €, 99 €, 1.499 €"));
+            Assert.That(result.ProductSummary, Does.Contain("Nicht in der Preisliste: 1.499 €"));
             Assert.That(result.ProductSummary, Does.Contain("Website-Prototyp – Folgegespräch"));
             Assert.That(result.ProductSummary, Does.Contain("Feedback zur Demo: wünscht Änderungen"));
             Assert.That(result.ProductSummary, Does.Contain("Entscheidung: Website gekauft"));

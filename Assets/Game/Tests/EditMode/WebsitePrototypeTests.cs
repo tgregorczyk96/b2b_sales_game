@@ -108,6 +108,24 @@ namespace SalesSim.Tests.EditMode
                 Sees(new[] { Event(PrototypeEventKind.DemoLinkOffered, "Ich schicke Ihnen einen Demo-Link", response: HypothesisResponse.Confirmed, customerQuote: "Ja, gerne") }));
 
         [Test]
+        public async Task NamedPrices_AreCheckedAgainstThePublishedPriceList_AndShownInTheResult()
+        {
+            var visit = new Visit()
+                .Turn("Als Gründungspartner zahlen Sie 799 Euro einmalig und 99 Euro im Monat.", "Hm, und Premium?",
+                    Sees(new[]
+                    {
+                        Event(PrototypeEventKind.PriceNamed, "799 Euro einmalig", detail: "799"),
+                        Event(PrototypeEventKind.PriceNamed, "99 Euro im Monat", detail: "99"),
+                    }))
+                .Turn("Premium kostet 1.499 Euro.", "Aha.", Sees(new[] { Event(PrototypeEventKind.PriceNamed, "Premium kostet 1.499 Euro", detail: "1.499") }));
+
+            var final = await visit.PlayAsync(PrototypeScenario);
+
+            Assert.That(final.Prototype.PricesNamed, Is.EqualTo("799 €, 99 €, 1.499 €"));
+            Assert.That(final.Prototype.WrongPrices, Is.EqualTo("1.499 €"), "Premium costs 1.799 € once");
+        }
+
+        [Test]
         public async Task NotPrepared_HasNoPrototype_AndNoFollowUp()
         {
             var final = await new Visit().Turn("Hallo!", "Hallo.", Sees()).PlayAsync(EngineScenarioSource.DefaultPool + ":1406361028");

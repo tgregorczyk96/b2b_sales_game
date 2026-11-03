@@ -1,5 +1,41 @@
 {
   "id": "website",
   "displayName": "Website",
-  "capabilities": [ "mobile-website", "local-search-visibility", "done-for-you-care", "online-booking" ]
+  "capabilities": [ "mobile-website", "local-search-visibility", "done-for-you-care", "online-booking" ],
+  "pricing": {
+    "currency": "EUR",
+    "packages": [
+      {
+        "id": "starter",
+        "name": "Starter",
+        "setupPrice": 599,
+        "monthlyPrice": 79,
+        "foundingSetupPrice": 399,
+        "foundingMonthlyPrice": 69,
+        "includes": [ "Website", "Einrichtung und Optimierung des Google-Profils", "WhatsApp-Kontaktbutton", "Hosting und technische Wartung", "1 kleine inhaltliche Änderung pro Monat (bis 15 Min.)", "Support per WhatsApp" ]
+      },
+      {
+        "id": "professional",
+        "name": "Professional",
+        "setupPrice": 1199,
+        "monthlyPrice": 129,
+        "foundingSetupPrice": 799,
+        "foundingMonthlyPrice": 99,
+        "includes": [ "Alles aus Starter", "Online-Buchungssystem (24/7) mit Terminerinnerungen und eingerichtetem Buchungskalender", "Bis zu 3 kleine Änderungen pro Monat (zusammen bis 60 Min.)", "Bevorzugter Support" ]
+      },
+      {
+        "id": "premium",
+        "name": "Premium",
+        "setupPrice": 1799,
+        "monthlyPrice": 179,
+        "includes": [ "Alles aus Professional", "KI-Assistent mit monatlichem Nutzungskontingent", "Monatliches Reporting", "Bis zu 8 kleine und 1 mittlere Änderung pro Monat (zusammen bis 3 Std.)", "Vor-Ort-Termin bei der Einrichtung", "Schnellster Support" ]
+      }
+    ],
+    "conditions": [
+      "Der Gründungspreis gilt für Starter und Professional; der reduzierte Monatspreis bleibt, solange der Vertrag unverändert weiterläuft – auch wenn die regulären Preise steigen.",
+      "Nicht genutzte Änderungszeit verfällt am Monatsende.",
+      "Größere Arbeiten, neue Seiten, neue Funktionen und Redesigns werden separat angeboten; unbegrenzte Korrekturschleifen sind nicht enthalten.",
+      "Lizenz- oder Transaktionskosten des Buchungsanbieters trägt der Kunde; Domain und andere Fremdkosten stehen im Angebot."
+    ]
+  }
 }

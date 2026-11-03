@@ -1,5 +1,5 @@
 ﻿Sales Engine build copied by Tools/Sync-SalesEngine.ps1 - do not edit the DLLs or content by hand.
 repository: https://github.com/tgregorczyk96/sales_engine.git
 branch:     main
-commit:     303ae9bcce9321d22f71ea9a173c353c12f48543
+commit:     60a1e7ddaa5e0a811eafbead942dc068454727a2
 target:     netstandard2.1 (Release)

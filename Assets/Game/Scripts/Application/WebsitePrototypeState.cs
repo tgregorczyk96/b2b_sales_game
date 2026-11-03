@@ -7,8 +7,11 @@ namespace SalesSim.Application
     public sealed class WebsitePrototypeState
     {
         public WebsitePrototypeState(
-            string status, bool presented, bool demoHandedOver, bool isFollowUp, string feedback, int changeRequests, string decision, int demoDays)
+            string status, bool presented, bool demoHandedOver, bool isFollowUp, string feedback, int changeRequests, string decision, int demoDays,
+            string pricesNamed = "", string wrongPrices = "")
         {
+            PricesNamed = pricesNamed ?? string.Empty;
+            WrongPrices = wrongPrices ?? string.Empty;
             Status = status ?? string.Empty;
             Presented = presented;
             DemoHandedOver = demoHandedOver;
@@ -39,6 +42,12 @@ namespace SalesSim.Application
         public string Decision { get; }
 
         public int DemoDays { get; }
+
+        /// <summary>Website prices the player named, as German text (e.g. "799 €, 99 €"); empty when none.</summary>
+        public string PricesNamed { get; }
+
+        /// <summary>Named prices that are not in the published price list, as German text; empty when all were right.</summary>
+        public string WrongPrices { get; }
     }
 
     /// <summary>

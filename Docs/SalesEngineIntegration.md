@@ -233,6 +233,7 @@ Die Figur auf dem Bildschirm ist der **Kunde** (Salon-Inhaberin aus dem Szenario
 - **Ablauf:** Art „Website-Prototyp (Vor-Ort-Besuch)“ im Setup → Erstgespräch → Result Screen „7 Tage später: Folgegespräch“ (oder später im Setup „Offenes Folgegespräch führen“, auch nach Neustart) → Hinweis „7 Tage später …“ im Chat, Run-Zeile „Folgegespräch“.
 - **Economy:** Mit Demo-Link ist der Website-Lead „im Nachfass“ (Wert 0) und wird im Folgegespräch bewertet; Aufsteller-Umsatz wird im Erstgespräch gebucht. Folgegespräch eines Trainingslaufs bleibt Training.
 - **Tests:** Engine 1.677 bestanden / 26 übersprungen (+28). Unity EditMode 155/3 (+8, `WebsitePrototypeTests`), PlayMode 96/1 (+5, `PrototypeFollowUpFlowTests`). Live-Lauf Aufsteller → Entwurf → Demo → Folgegespräch bestanden.
+- **Website-Preise (2026-11-03):** Paketpreise von tom-gre-it.de in `offers/website.json` (regulär und Gründungsangebot). Die Engine zeigt sie in den Hinweisen und prüft genannte Preise; `WebsitePrototypeState.PricesNamed` / `WrongPrices`, im Result „Preise genannt“ und „Nicht in der Preisliste“. Aufsteller: Link nachträglich änderbar (Weiterleitung der Aufsteller-ID im Backend). Tests: Engine 1.692/26, Unity EditMode 156/3, PlayMode 96/1.
 
 ## Weitere offene Punkte
 
