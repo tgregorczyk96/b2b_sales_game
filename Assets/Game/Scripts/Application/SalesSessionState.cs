@@ -35,6 +35,15 @@ namespace SalesSim.Application
         /// <summary>The directly sold product as the engine reports it; <c>null</c> in ordinary scenarios.</summary>
         public ProductSaleState ProductSale { get; }
 
+        /// <summary>The prepared website draft; <c>null</c> when none was prepared.</summary>
+        public WebsitePrototypeState Prototype { get; }
+
+        /// <summary>Set once the conversation ended with the demo link and no decision: the follow-up the engine wants played.</summary>
+        public FollowUpDue FollowUp { get; }
+
+        /// <summary>The website lead is decided in the follow-up, not now (so it is never priced twice).</summary>
+        public bool LeadDeferred { get; }
+
         public SalesSessionState(
             string sessionId,
             string customerMessage,
@@ -45,7 +54,10 @@ namespace SalesSim.Application
             string endReason = "",
             string commitment = "",
             ProductSaleState productSale = null,
-            bool hasLeadOffer = true)
+            bool hasLeadOffer = true,
+            WebsitePrototypeState prototype = null,
+            FollowUpDue followUp = null,
+            bool leadDeferred = false)
         {
             SessionId = sessionId ?? string.Empty;
             CustomerMessage = customerMessage ?? string.Empty;
@@ -57,6 +69,9 @@ namespace SalesSim.Application
             Commitment = commitment ?? string.Empty;
             ProductSale = productSale;
             HasLeadOffer = hasLeadOffer;
+            Prototype = prototype;
+            FollowUp = followUp;
+            LeadDeferred = leadDeferred;
         }
     }
 }

@@ -226,6 +226,14 @@ Die Figur auf dem Bildschirm ist der **Kunde** (Salon-Inhaberin aus dem Szenario
 - **UI (Builder „Sales Sim/Build Game Loop UI“):** Auswahl der Art im Setup, Live-Statuszeile (`SaleStatusLabel`), Produktblock im Result Screen (verkauft, Einrichtung, Zahlungsmethode, Zahlungsstatus, weiterer Verlauf, fragwürdige Produktaussagen).
 - **Tests:** Engine 1.649 bestanden / 26 übersprungen (+85). Unity EditMode 147/3 übersprungen (+18, `ReviewStandSaleTests`), PlayMode 91/1 übersprungen (+9, `ReviewStandFlowTests`). Zwei Live-Läufe gegen Anthropic bestanden (Ablehnung bei Zeitdruck; Kauf → Einrichtung → offene Überweisung → Website).
 
+## Website-Prototyp und 7-Tage-Nachfass (2026-11-03)
+
+- **Engine:** siehe `sales_engine/docs/website-prototype-follow-up.md`. Vorbereiteter Entwurf je Pool (`website-prototype-visit`, außerdem `review-stand-visit` für die Website danach); Status vorbereitet → vorgestellt → Demo-Link übergeben → in Prüfung → Feedback → Entscheidung; Folgegespräch als Phase `FollowUp` aus einem `FollowUpBrief`.
+- **Boundary:** `SalesSessionState.Prototype` (`WebsitePrototypeState`), `FollowUp` (`FollowUpDue`: opaker Engine-String + Tage), `LeadDeferred`; `SessionStartRequest.FollowUpPayload` startet das Folgegespräch. Unity speichert den String unverändert (`SaveData.pendingFollowUps`).
+- **Ablauf:** Art „Website-Prototyp (Vor-Ort-Besuch)“ im Setup → Erstgespräch → Result Screen „7 Tage später: Folgegespräch“ (oder später im Setup „Offenes Folgegespräch führen“, auch nach Neustart) → Hinweis „7 Tage später …“ im Chat, Run-Zeile „Folgegespräch“.
+- **Economy:** Mit Demo-Link ist der Website-Lead „im Nachfass“ (Wert 0) und wird im Folgegespräch bewertet; Aufsteller-Umsatz wird im Erstgespräch gebucht. Folgegespräch eines Trainingslaufs bleibt Training.
+- **Tests:** Engine 1.677 bestanden / 26 übersprungen (+28). Unity EditMode 155/3 (+8, `WebsitePrototypeTests`), PlayMode 96/1 (+5, `PrototypeFollowUpFlowTests`). Live-Lauf Aufsteller → Entwurf → Demo → Folgegespräch bestanden.
+
 ## Weitere offene Punkte
 
 - `Engagement` vs. `Interest` (s. Mapping).

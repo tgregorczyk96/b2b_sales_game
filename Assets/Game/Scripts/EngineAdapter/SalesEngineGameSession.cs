@@ -13,6 +13,7 @@ using SalesEngine.AI.Training;
 using SalesEngine.Content;
 using SalesEngine.Customers;
 using SalesEngine.Difficulty;
+using SalesEngine.Origins;
 using SalesEngine.Sales;
 using SalesEngine.Training;
 using SalesSim.Application;
@@ -141,10 +142,19 @@ namespace SalesSim.EngineAdapter
             var (pool, seed) = ParseScenarioId(request.ScenarioId);
             var runDifficulty = request.Difficulty.Length == 0 ? difficulty : DifficultyNamed(request.Difficulty);
             var origin = new ContentRepository(contentDirectory).LoadGenerator(pool).Generate(seed);
+            var scenario = origin.Scenario;
+            if (request.IsFollowUp)
+            {
+                // The follow-up after the demo period: the engine rebuilds the first visit from its own record.
+                var brief = FollowUpBriefJson.Read(request.FollowUpPayload, origin.Scenario);
+                scenario = brief.ScenarioFor(origin.Scenario);
+                log($"{LogPrefix}Follow-up: {brief.DaysLater} days later, first visit had {brief.PreviousTurns.Count} turns");
+            }
+
             var newEngine = createEngine();
-            var newSession = newEngine.StartScenario(origin.Scenario, runDifficulty);
+            var newSession = newEngine.StartScenario(scenario, runDifficulty);
             log($"{LogPrefix}Run: {pool}:{seed} (generator v{origin.GeneratorVersion}, origin {origin.Source}, "
-                + $"customer {origin.Blocks.Customer}), difficulty {runDifficulty.Name}");
+                + $"customer {origin.Blocks.Customer}), difficulty {runDifficulty.Name}{(request.IsFollowUp ? ", follow-up" : string.Empty)}");
 
             engine = newEngine;
             session = newSession;
@@ -154,7 +164,7 @@ namespace SalesSim.EngineAdapter
             var (sale, commitment, hasLead) = SaleView();
             CurrentState = new SalesSessionState(
                 sessionId, opening, ToIndicators(newSession.CustomerState), newSession.Stage.ToString(), string.Empty, newSession.IsEnded,
-                string.Empty, commitment, sale, hasLead);
+                string.Empty, commitment, sale, hasLead, PrototypeView(), null, LeadDeferred());
             return Task.FromResult(CurrentState);
         }
 
@@ -203,7 +213,7 @@ namespace SalesSim.EngineAdapter
 
             CurrentState = new SalesSessionState(
                 sessionId, result.CustomerReply, ToIndicators(result.StateAfter), result.Stage.ToString(), intent, result.End != null,
-                result.End == null ? string.Empty : result.End.Reason.ToString(), commitment, sale, hasLead);
+                result.End == null ? string.Empty : result.End.Reason.ToString(), commitment, sale, hasLead, PrototypeView(), DueFollowUp(), LeadDeferred());
             return CurrentState;
         }
 
@@ -219,7 +229,7 @@ namespace SalesSim.EngineAdapter
             var (sale, commitment, hasLead) = SaleView();
             CurrentState = new SalesSessionState(
                 sessionId, string.Empty, ToIndicators(ended.CustomerState), ended.Stage.ToString(), CurrentState.Intent, ended.IsEnded,
-                ended.End == null ? string.Empty : ended.End.Reason.ToString(), commitment, sale, hasLead);
+                ended.End == null ? string.Empty : ended.End.Reason.ToString(), commitment, sale, hasLead, PrototypeView(), DueFollowUp(), LeadDeferred());
             return Task.FromResult(CurrentState);
         }
 
@@ -303,6 +313,32 @@ namespace SalesSim.EngineAdapter
         {
             return player != null && player.IsComplete ? new TraineeProfile(player.Name, player.Company) : null;
         }
+
+        private WebsitePrototypeState PrototypeView()
+        {
+            var prototype = session.Prototype;
+            return prototype == null
+                ? null
+                : new WebsitePrototypeState(
+                    prototype.Status.ToString(), prototype.Presented, prototype.DemoHandedOver, prototype.IsFollowUp,
+                    prototype.State.FeedbackGiven?.ToString() ?? string.Empty, prototype.State.ChangeRequests.Count, prototype.Decision.ToString(),
+                    prototype.Prototype.DemoDays);
+        }
+
+        /// <summary>The engine's follow-up record once the conversation ended with the demo link and no decision.</summary>
+        private FollowUpDue DueFollowUp()
+        {
+            var brief = session.IsEnded ? FollowUpBrief.After(session) : null;
+            if (brief == null)
+            {
+                return null;
+            }
+
+            log($"{LogPrefix}Follow-up due in {brief.DaysLater} days (demo link handed over)");
+            return new FollowUpDue(FollowUpBriefJson.Write(brief), brief.DaysLater);
+        }
+
+        private bool LeadDeferred() => session.Prototype?.FollowUpDue ?? false;
 
         /// <summary>
         /// The engine's product sale (if any), the commitment that counts for the lead, and whether there is a lead offer at all.

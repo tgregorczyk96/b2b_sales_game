@@ -14,6 +14,19 @@ namespace SalesSim.Presentation
         public static string Title(ProductSaleState sale) => $"{sale.ProductName} ({Amount(sale.Price, sale.Currency)})";
 
         /// <summary>One line during the conversation, e.g. "Aufsteller: verkauft · Einrichtung 2/4 · Zahlung: Karte – offen".</summary>
+        /// <summary>The live status line: product sale and/or website draft.</summary>
+        public static string Status(SalesSessionState state)
+        {
+            if (state == null)
+            {
+                return string.Empty;
+            }
+
+            var sale = Status(state.ProductSale);
+            var draft = PrototypeStatus(state.Prototype);
+            return sale.Length == 0 ? draft : draft.Length == 0 ? sale : sale + "\n" + draft;
+        }
+
         public static string Status(ProductSaleState sale)
         {
             if (sale == null)
@@ -66,6 +79,83 @@ namespace SalesSim.Presentation
             }
 
             return text;
+        }
+
+        /// <summary>The website draft block of the result screen; empty without a draft.</summary>
+        public static string PrototypeSummary(WebsitePrototypeState prototype, FollowUpDue followUp)
+        {
+            if (prototype == null)
+            {
+                return string.Empty;
+            }
+
+            var text = prototype.IsFollowUp ? "Website-Prototyp – Folgegespräch" : "Website-Prototyp";
+            if (!prototype.IsFollowUp)
+            {
+                text += $"\n• Entwurf vorgestellt: {YesNo(prototype.Presented)}"
+                        + $"\n• Demo-Link übergeben: {(prototype.DemoHandedOver ? $"Ja ({prototype.DemoDays} Tage, unverbindlich)" : "Nein")}";
+            }
+            else
+            {
+                text += $"\n• Feedback zur Demo: {FeedbackText(prototype.Feedback)}";
+                if (prototype.ChangeRequests > 0)
+                {
+                    text += $"\n• Änderungswünsche: {prototype.ChangeRequests}";
+                }
+            }
+
+            text += $"\n• Entscheidung: {DecisionText(prototype.Decision)}";
+            if (followUp != null)
+            {
+                text += $"\n• Nachfass: Folgegespräch in {followUp.DaysLater} Tagen offen";
+            }
+
+            return text;
+        }
+
+        /// <summary>One line during the conversation, e.g. "Website-Entwurf: vorgestellt · Demo-Link übergeben".</summary>
+        public static string PrototypeStatus(WebsitePrototypeState prototype)
+        {
+            if (prototype == null)
+            {
+                return string.Empty;
+            }
+
+            if (prototype.IsFollowUp)
+            {
+                return $"Folgegespräch · Feedback: {FeedbackText(prototype.Feedback)} · Entscheidung: {DecisionText(prototype.Decision)}";
+            }
+
+            var line = $"Website-Entwurf: {(prototype.Presented ? "vorgestellt" : "vorbereitet")}";
+            if (prototype.DemoHandedOver)
+            {
+                line += $" · Demo-Link übergeben ({prototype.DemoDays} Tage)";
+            }
+
+            return prototype.Decision == "Open" ? line : line + $" · {DecisionText(prototype.Decision)}";
+        }
+
+        public static string FeedbackText(string feedback)
+        {
+            switch (feedback)
+            {
+                case "WantsToBuy": return "will kaufen";
+                case "WantsChanges": return "wünscht Änderungen";
+                case "NeedsMoreTime": return "braucht mehr Bedenkzeit";
+                case "NotViewed": return "Demo noch nicht angeschaut";
+                case "Declines": return "lehnt ab";
+                default: return "noch keins";
+            }
+        }
+
+        public static string DecisionText(string decision)
+        {
+            switch (decision)
+            {
+                case "Bought": return "Website gekauft";
+                case "Declined": return "abgelehnt";
+                default: return "offen";
+            }
         }
 
         public static string MethodText(string method)

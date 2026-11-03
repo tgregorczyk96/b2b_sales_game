@@ -31,6 +31,20 @@ namespace SalesSim.Game
         /// <summary>The last lead score per scenario id; saves without it use <see cref="lastScores"/>.</summary>
         public List<ScenarioScore> scenarioScores = new List<ScenarioScore>();
 
+        /// <summary>Follow-ups waiting after a demo period (the engine's record of the first visit, stored unchanged).</summary>
+        public List<SavedFollowUp> pendingFollowUps = new List<SavedFollowUp>();
+
+        [Serializable]
+        public sealed class SavedFollowUp
+        {
+            public int seed;
+            public string difficulty = string.Empty;
+            public string scenarioId = string.Empty;
+            public string payload = string.Empty;
+            public int daysLater;
+            public bool isTraining;
+        }
+
         [Serializable]
         public sealed class ScenarioScore
         {

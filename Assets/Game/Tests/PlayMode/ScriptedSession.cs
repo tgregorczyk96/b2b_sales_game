@@ -52,7 +52,12 @@ namespace SalesSim.Tests.PlayMode
                 ? new ProductSaleState("Google-Bewertungsaufsteller", 39m, "EUR", false, false, false, false, true, "NotStarted", 0, 4,
                     string.Empty, "NotStarted", 0m, 0m, "NotSold", string.Empty, string.Empty)
                 : null;
-            CurrentState = new SalesSessionState("scripted", "Guten Tag?", Start, "Opening", string.Empty, false, string.Empty, string.Empty, product, !stand);
+            // A prototype visit starts with the draft prepared; a follow-up starts in review, greeted like a returning visitor.
+            var draft = request.ScenarioId.StartsWith(ScriptedScenarioSource.PrototypeKind + ":", StringComparison.Ordinal) || request.IsFollowUp
+                ? new WebsitePrototypeState(request.IsFollowUp ? "InReview" : "Prepared", false, false, request.IsFollowUp, string.Empty, 0, "Open", 7)
+                : null;
+            CurrentState = new SalesSessionState("scripted", request.IsFollowUp ? "Ach, hallo – Sie waren doch letzte Woche schon hier." : "Guten Tag?",
+                Start, "Opening", string.Empty, false, string.Empty, string.Empty, request.IsFollowUp ? null : product, !stand || request.IsFollowUp, draft);
             return Task.FromResult(CurrentState);
         }
 
@@ -66,7 +71,7 @@ namespace SalesSim.Tests.PlayMode
         public Task<SalesSessionState> EndSessionAsync(CancellationToken cancellationToken = default)
         {
             CurrentState = new SalesSessionState("scripted", string.Empty, CurrentState.Indicators, "Ended", CurrentState.Intent, true, "NotStated",
-                CurrentState.Commitment, CurrentState.ProductSale, CurrentState.HasLeadOffer);
+                CurrentState.Commitment, CurrentState.ProductSale, CurrentState.HasLeadOffer, CurrentState.Prototype, EndFollowUp, EndFollowUp != null);
             return Task.FromResult(CurrentState);
         }
 
@@ -112,6 +117,9 @@ namespace SalesSim.Tests.PlayMode
                 "scripted", customerMessage, indicators, over ? "Ended" : "Opening", "Continue", over, endReason, commitment);
             pending.SetResult(CurrentState);
         }
+
+        /// <summary>What <see cref="EndSessionAsync"/> reports as due follow-up (e.g. after a demo link); <c>null</c> = none.</summary>
+        public FollowUpDue EndFollowUp { get; set; }
 
         /// <summary>Answers the pending turn with a complete state, e.g. one with a product sale.</summary>
         public void Answer(SalesSessionState state)

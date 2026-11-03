@@ -381,8 +381,11 @@ namespace SalesSim.Presentation
         /// <param name="scenario">The opaque scenario id, see <see cref="IScenarioSource.ScenarioIdFor"/>.</param>
         /// <param name="playerProfile">The player's own name and company for the engine; <c>null</c> without.</param>
         /// <param name="difficulty">One of the engine's difficulty names; <c>null</c> uses the session's default.</param>
+        /// <param name="followUpPayload">The engine's record of a first visit, to play its follow-up; <c>null</c> for a first visit.</param>
+        /// <param name="openingNotice">A note shown in the chat before the customer's greeting (e.g. "7 Tage später …").</param>
         public async void Initialize(
-            ISalesGameSession salesSession, string scenario, PlayerProfile playerProfile = null, string difficulty = null)
+            ISalesGameSession salesSession, string scenario, PlayerProfile playerProfile = null, string difficulty = null,
+            string followUpPayload = null, string openingNotice = null)
         {
             session = salesSession ?? throw new ArgumentNullException(nameof(salesSession));
             DiscardSpeech(null);
@@ -394,6 +397,11 @@ namespace SalesSim.Presentation
             guidanceUsage = new GuidanceUsage();
             guidance.Clear();
             history.Clear();
+            if (!string.IsNullOrEmpty(openingNotice))
+            {
+                history.AddNotice(openingNotice);
+            }
+
             playerInput.text = string.Empty;
             character.SetState(CharacterVisualState.Idle);
             SetInputEnabled(false);
@@ -401,7 +409,7 @@ namespace SalesSim.Presentation
 
             try
             {
-                var request = new SessionStartRequest(scenario, playerProfile, difficulty);
+                var request = new SessionStartRequest(scenario, playerProfile, difficulty, followUpPayload);
                 var state = await session.StartSessionAsync(request, destroyCancellationToken);
                 Render(state);
             }

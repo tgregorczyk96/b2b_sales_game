@@ -11,11 +11,17 @@ namespace SalesSim.Application
         /// <summary>One of <see cref="IScenarioSource.Difficulties"/>; empty uses the session's default difficulty.</summary>
         public string Difficulty { get; }
 
-        public SessionStartRequest(string scenarioId, PlayerProfile player = null, string difficulty = null)
+        /// <summary>The engine's record of the first visit (<see cref="FollowUpDue.Payload"/>) to start its follow-up; empty for a first visit.</summary>
+        public string FollowUpPayload { get; }
+
+        public bool IsFollowUp => FollowUpPayload.Length > 0;
+
+        public SessionStartRequest(string scenarioId, PlayerProfile player = null, string difficulty = null, string followUpPayload = null)
         {
             ScenarioId = scenarioId ?? string.Empty;
             Player = player;
             Difficulty = difficulty ?? string.Empty;
+            FollowUpPayload = followUpPayload ?? string.Empty;
         }
     }
 }

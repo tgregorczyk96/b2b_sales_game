@@ -11,6 +11,8 @@ namespace SalesSim.Tests.PlayMode
     {
         public const string StandKind = "scripted-stand";
 
+        public const string PrototypeKind = "scripted-prototype";
+
         private int nextSeed = 1000;
 
         public IReadOnlyList<string> Difficulties { get; } = new[] { "Easy", "Medium", "Hard" };
@@ -19,6 +21,7 @@ namespace SalesSim.Tests.PlayMode
         {
             new ScenarioKind("scripted", "Website & Co."),
             new ScenarioKind(StandKind, "Bewertungsaufsteller (Vor-Ort-Besuch)"),
+            new ScenarioKind(PrototypeKind, "Website-Prototyp (Vor-Ort-Besuch)"),
         };
 
         public string SelectedKind { get; private set; } = "scripted";

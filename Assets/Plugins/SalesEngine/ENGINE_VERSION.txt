@@ -1,5 +1,5 @@
 ﻿Sales Engine build copied by Tools/Sync-SalesEngine.ps1 - do not edit the DLLs or content by hand.
 repository: https://github.com/tgregorczyk96/sales_engine.git
 branch:     feature/review-stand-direct-sale
-commit:     ba32a13cab0f6c8041d81145bceadea091fb7762
+commit:     303ae9bcce9321d22f71ea9a173c353c12f48543
 target:     netstandard2.1 (Release)

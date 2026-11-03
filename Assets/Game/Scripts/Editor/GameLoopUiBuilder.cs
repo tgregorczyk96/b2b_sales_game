@@ -73,14 +73,14 @@ namespace SalesSim.Editor
             Assign(resultComponent, ("overlay", overlay), ("runText", resultView["Run"]), ("outcomeText", resultView["Outcome"]),
                 ("qualityText", resultView["Quality"]), ("valueText", resultView["Value"]), ("closerText", resultView["Closer"]),
                 ("payoutText", resultView["Payout"]), ("balanceText", resultView["Balance"]), ("guidanceText", resultView["Guidance"]),
-                ("productText", resultView["Product"]),
+                ("productText", resultView["Product"]), ("followUpButton", resultView["FollowUpButton"]),
                 ("sellButton", resultView["SellButton"]), ("rerunButton", resultView["RerunButton"]),
                 ("nextRunButton", resultView["NextRunButton"]));
 
             var setupComponent = loopObject.AddComponent<RunSetupView>();
             Assign(setupComponent, ("overlay", setupOverlay), ("seedInput", (Object)setup["SeedInput"]), ("randomSeedButton", (Object)setup["RandomSeedButton"]),
                 ("newRunButton", (Object)setup["NewRunButton"]), ("rerunButton", (Object)setup["RerunButton"]), ("lastRunText", (Object)setup["LastRun"]),
-                ("messageText", (Object)setup["Message"]));
+                ("messageText", (Object)setup["Message"]), ("followUpButton", (Object)setup["FollowUpButton"]));
             var setupSo = new SerializedObject(setupComponent);
             var difficultyButtons = setupSo.FindProperty("difficultyButtons");
             difficultyButtons.arraySize = buttons.Count;
@@ -176,6 +176,18 @@ namespace SalesSim.Editor
             parts["RerunButton"] = NewButton("RerunButton", row, "Diesen Seed erneut spielen", ButtonColor, 22f).GetComponent<Button>();
             parts["NextRunButton"] = NewButton("NextRunButton", row, "Neuer Run", ButtonColor, 22f).GetComponent<Button>();
 
+            // "7 Tage später: Folgegespräch" after a first visit that ended with the demo link (hidden otherwise).
+            var followUpRow = NewUi("FollowUpRow", panel);
+            var followUpLayout = followUpRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+            followUpLayout.childControlWidth = true;
+            followUpLayout.childControlHeight = true;
+            followUpLayout.childForceExpandWidth = true;
+            followUpLayout.childForceExpandHeight = true;
+            FixedHeight(followUpRow, 60f);
+            var followUp = NewButton("FollowUpButton", followUpRow, "7 Tage später: Folgegespräch", AccentButtonColor, 22f);
+            parts["FollowUpButton"] = followUp.GetComponent<Button>();
+            followUp.SetActive(false);
+
             overlay.gameObject.SetActive(false);
             return (overlay.gameObject, parts);
         }
@@ -210,9 +222,11 @@ namespace SalesSim.Editor
             NewText("KindLabel", panel, 22f, new Color(0.72f, 0.8f, 0.92f)).text = "Was verkaufst du?";
             var kindRow = NewRow("KindButtons", panel, 64f);
             var kinds = new List<Button>();
-            for (var i = 0; i < 2; i++)
+            for (var i = 0; i < 3; i++)
             {
-                kinds.Add(NewButton($"Kind{i}", kindRow, i == 0 ? "Website & Co." : "Bewertungsaufsteller", ButtonColor, 22f).GetComponent<Button>());
+                var kind = NewButton($"Kind{i}", kindRow, $"Art {i + 1}", ButtonColor, 18f);
+                kind.GetComponentInChildren<TMP_Text>().textWrappingMode = TextWrappingModes.Normal; // labels come from the engine at runtime
+                kinds.Add(kind.GetComponent<Button>());
             }
 
             parts["KindButtons"] = kinds;
@@ -242,6 +256,12 @@ namespace SalesSim.Editor
 
             var spacer = NewUi("Spacer", panel);
             spacer.gameObject.AddComponent<LayoutElement>().flexibleHeight = 1f;
+
+            // Follow-ups waiting after their demo period (hidden when none).
+            var followUpRow = NewRow("FollowUpRow", panel, 60f);
+            var followUp = NewButton("FollowUpButton", followUpRow, "Offenes Folgegespräch führen", AccentButtonColor, 22f);
+            parts["FollowUpButton"] = followUp.GetComponent<Button>();
+            followUp.SetActive(false);
 
             var row = NewRow("Buttons", panel, 72f);
             parts["RerunButton"] = NewButton("RerunButton", row, "Seed wiederholen", ButtonColor, 24f).GetComponent<Button>();

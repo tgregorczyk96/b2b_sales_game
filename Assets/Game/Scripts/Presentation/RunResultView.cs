@@ -26,6 +26,7 @@ namespace SalesSim.Presentation
         [SerializeField] private TMP_Text balanceText;
         [SerializeField] private TMP_Text guidanceText;
         [SerializeField] private TMP_Text productText;
+        [SerializeField] private Button followUpButton;
         [SerializeField] private Button sellButton;
         [SerializeField] private Button nextRunButton;
         [SerializeField] private Button rerunButton;
@@ -33,6 +34,13 @@ namespace SalesSim.Presentation
         public event Action SellRequested;
         public event Action NextRunRequested;
         public event Action RerunRequested;
+
+        /// <summary>"7 Tage später: Folgegespräch" — the follow-up after the demo period.</summary>
+        public event Action FollowUpRequested;
+
+        public Button FollowUpButton => followUpButton;
+
+        public bool CanStartFollowUp => followUpButton != null && followUpButton.gameObject.activeSelf;
 
         public bool IsVisible => overlay.activeSelf;
 
@@ -54,6 +62,11 @@ namespace SalesSim.Presentation
             sellButton.onClick.AddListener(() => SellRequested?.Invoke());
             nextRunButton.onClick.AddListener(() => NextRunRequested?.Invoke());
             rerunButton.onClick.AddListener(() => RerunRequested?.Invoke());
+            if (followUpButton != null)
+            {
+                followUpButton.onClick.AddListener(() => FollowUpRequested?.Invoke());
+            }
+
             overlay.SetActive(false);
         }
 
@@ -62,7 +75,7 @@ namespace SalesSim.Presentation
         /// <param name="product">The directly sold product of the run; <c>null</c> or without product shows no product block.</param>
         public void Show(
             LeadSale sale, float closerShare, int balance, GuidanceUsage guidance, RunInfo run = null, float? previousScore = null,
-            ProductSettlement product = null)
+            ProductSettlement product = null, SalesSim.Application.WebsitePrototypeState prototype = null, SalesSim.Application.FollowUpDue followUp = null)
         {
             var lead = sale.Evaluation;
             runText.text = RunSummary(run, lead.Score, previousScore);
@@ -74,11 +87,25 @@ namespace SalesSim.Presentation
                     : $"Gesprächsergebnis: {EndReasonText(lead.EndReason)} · Vereinbarung: {CommitmentText(lead.Commitment)}";
             if (productText != null)
             {
-                productText.text = hasProduct ? ProductSaleText.Summary(product) : string.Empty;
-                productText.gameObject.SetActive(hasProduct);
+                var blocks = (hasProduct ? ProductSaleText.Summary(product) : string.Empty);
+                var draft = ProductSaleText.PrototypeSummary(prototype, followUp);
+                productText.text = blocks.Length == 0 ? draft : draft.Length == 0 ? blocks : blocks + "\n" + draft;
+                productText.gameObject.SetActive(productText.text.Length > 0);
             }
 
-            qualityText.text = $"Lead-Qualität: {QualityText(lead.Quality)} (Score {lead.Score.ToString("0", CultureInfo.InvariantCulture)})";
+            if (followUpButton != null)
+            {
+                followUpButton.gameObject.SetActive(followUp != null);
+                if (followUp != null)
+                {
+                    followUpButton.GetComponentInChildren<TMP_Text>().text = $"{followUp.DaysLater} Tage später: Folgegespräch";
+                }
+            }
+
+
+            qualityText.text = lead.IsDeferred
+                ? "Lead im Nachfass – bewertet nach dem Folgegespräch"
+                : $"Lead-Qualität: {QualityText(lead.Quality)} (Score {lead.Score.ToString("0", CultureInfo.InvariantCulture)})";
             valueText.text = $"Lead-Wert: {Euro(lead.Value)}";
             closerText.text = $"Closer-Anteil ({(closerShare * 100f).ToString("0", CultureInfo.InvariantCulture)} %): −{Euro(lead.CloserCut)}";
             guidanceText.text = GuidanceSummary(guidance);
@@ -119,7 +146,7 @@ namespace SalesSim.Presentation
                 return string.Empty;
             }
 
-            var kind = run.IsRerun ? "Trainingslauf" : "Erster Run";
+            var kind = run.IsFollowUp ? (run.IsRerun ? "Folgegespräch (Training)" : "Folgegespräch") : run.IsRerun ? "Trainingslauf" : "Erster Run";
             var summary = $"{run.Difficulty} · Seed {run.Seed.ToString(CultureInfo.InvariantCulture)} · {kind}";
             if (previousScore is float before)
             {

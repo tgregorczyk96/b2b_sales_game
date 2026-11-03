@@ -21,6 +21,7 @@ namespace SalesSim.Presentation
         [SerializeField] private GameObject overlay;
         [SerializeField] private Button[] difficultyButtons;
         [SerializeField] private Button[] kindButtons = new Button[0];
+        [SerializeField] private Button followUpButton;
         [SerializeField] private TMP_InputField seedInput;
         [SerializeField] private Button randomSeedButton;
         [SerializeField] private Button newRunButton;
@@ -39,6 +40,11 @@ namespace SalesSim.Presentation
         public event Action RerunRequested;
 
         public event Action RandomSeedRequested;
+
+        /// <summary>Continue the newest waiting follow-up.</summary>
+        public event Action FollowUpRequested;
+
+        public Button FollowUpButton => followUpButton;
 
         public bool IsVisible => overlay.activeSelf;
 
@@ -78,6 +84,10 @@ namespace SalesSim.Presentation
             }
 
             randomSeedButton.onClick.AddListener(() => RandomSeedRequested?.Invoke());
+            if (followUpButton != null)
+            {
+                followUpButton.onClick.AddListener(() => FollowUpRequested?.Invoke());
+            }
             newRunButton.onClick.AddListener(() => NewRunRequested?.Invoke(SelectedDifficulty, seedInput.text));
             rerunButton.onClick.AddListener(() => RerunRequested?.Invoke());
         }
@@ -144,6 +154,20 @@ namespace SalesSim.Presentation
             lastRunText.text = $"{last}\nGuthaben: {RunResultView.Euro(balance)} · {seeds}";
             rerunButton.interactable = lastRun != null;
             overlay.SetActive(true);
+        }
+
+        /// <summary>Shows how many follow-ups wait after their demo period; hidden when none.</summary>
+        public void ShowFollowUps(int waiting)
+        {
+            if (followUpButton == null)
+            {
+                return;
+            }
+
+            followUpButton.gameObject.SetActive(waiting > 0);
+            followUpButton.GetComponentInChildren<TMP_Text>().text = waiting == 1
+                ? "Offenes Folgegespräch führen (7 Tage später)"
+                : $"Offenes Folgegespräch führen ({waiting} offen)";
         }
 
         public void Hide()

@@ -30,8 +30,8 @@ namespace SalesSim.Presentation
             intentText.text = $"Intent: {OrDash(state.Intent)}";
             if (saleText != null)
             {
-                saleText.text = ProductSaleText.Status(state.ProductSale);
-                saleText.gameObject.SetActive(state.ProductSale != null);
+                saleText.text = ProductSaleText.Status(state);
+                saleText.gameObject.SetActive(state.ProductSale != null || state.Prototype != null);
             }
         }
 

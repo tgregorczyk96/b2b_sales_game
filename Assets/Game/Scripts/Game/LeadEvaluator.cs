@@ -16,8 +16,9 @@ namespace SalesSim.Game
     /// <summary>The priced result of one run. Immutable.</summary>
     public sealed class LeadEvaluation
     {
-        public LeadEvaluation(LeadQuality quality, float score, int value, int closerCut, string endReason, string commitment)
+        public LeadEvaluation(LeadQuality quality, float score, int value, int closerCut, string endReason, string commitment, bool isDeferred = false)
         {
+            IsDeferred = isDeferred;
             Quality = quality;
             Score = score;
             Value = value;
@@ -47,6 +48,9 @@ namespace SalesSim.Game
 
         /// <summary>Next step the engine considers agreed (e.g. "Appointment"); empty if none.</summary>
         public string Commitment { get; }
+
+        /// <summary>The website lead is priced in the follow-up after the demo period, not in this run.</summary>
+        public bool IsDeferred { get; }
     }
 
     /// <summary>
@@ -81,7 +85,12 @@ namespace SalesSim.Game
                 + settings.patienceWeight * indicators.Patience);
 
             var quality = Max(QualityFromScore(score, settings), FloorFromCommitment(finalState.Commitment));
-            if (!finalState.HasLeadOffer)
+            if (finalState.LeadDeferred)
+            {
+                // The demo link was handed over: the lead is decided and priced in the follow-up, never twice.
+                quality = LeadQuality.Lost;
+            }
+            else if (!finalState.HasLeadOffer)
             {
                 // Only a directly sold product was discussed (e.g. the review stand): its revenue is booked as product revenue
                 // (ProductSettlement), never as a lead — otherwise the same conversation would be paid twice.
@@ -98,7 +107,7 @@ namespace SalesSim.Game
 
             var value = (int)Math.Round(settings.baseLeadValue * settings.MultiplierFor(quality), MidpointRounding.AwayFromZero);
             var cut = (int)Math.Round(value * settings.closerShare, MidpointRounding.AwayFromZero);
-            return new LeadEvaluation(quality, score, value, cut, finalState.EndReason, finalState.Commitment);
+            return new LeadEvaluation(quality, score, value, cut, finalState.EndReason, finalState.Commitment, finalState.LeadDeferred);
         }
 
         private static LeadQuality QualityFromScore(float score, EconomySettings settings)

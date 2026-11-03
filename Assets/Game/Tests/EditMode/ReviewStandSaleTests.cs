@@ -268,7 +268,8 @@ namespace SalesSim.Tests.EditMode
         {
             var source = new EngineScenarioSource(ContentDirectory, random: new Random(3));
 
-            Assert.That(source.Kinds.Select(k => k.Id), Is.EqualTo(new[] { EngineScenarioSource.DefaultPool, EngineScenarioSource.ReviewStandPool }));
+            Assert.That(source.Kinds.Select(k => k.Id),
+                Is.EqualTo(new[] { EngineScenarioSource.DefaultPool, EngineScenarioSource.ReviewStandPool, EngineScenarioSource.PrototypePool }));
             Assert.That(source.SelectedKind, Is.EqualTo(EngineScenarioSource.DefaultPool));
 
             source.Select(EngineScenarioSource.ReviewStandPool);

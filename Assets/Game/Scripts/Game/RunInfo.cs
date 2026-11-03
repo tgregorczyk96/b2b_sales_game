@@ -9,8 +9,9 @@ namespace SalesSim.Game
     /// </summary>
     public sealed class RunInfo
     {
-        public RunInfo(int runId, int seed, string difficulty, string scenarioId, bool isRerun)
+        public RunInfo(int runId, int seed, string difficulty, string scenarioId, bool isRerun, bool isFollowUp = false)
         {
+            IsFollowUp = isFollowUp;
             if (seed < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(seed), seed, "Seeds are 0 or greater.");
@@ -36,6 +37,9 @@ namespace SalesSim.Game
 
         /// <summary>True when this seed was played before in this game session: a training run without payout.</summary>
         public bool IsRerun { get; }
+
+        /// <summary>The follow-up visit after a demo period; a training run's follow-up is training too.</summary>
+        public bool IsFollowUp { get; }
 
         /// <summary>
         /// Reads the seed field: empty means "random" (<paramref name="seed"/> is <c>null</c>), otherwise a whole number in
@@ -96,6 +100,18 @@ namespace SalesSim.Game
             playedSeeds.Add(seed);
             playedScenarios.Add(id);
             Last = run;
+            return run;
+        }
+
+        /// <summary>
+        /// Registers the follow-up of a first visit. It continues that scenario: not a new scenario and not a rerun — unless the
+        /// first visit was training.
+        /// </summary>
+        public RunInfo BeginFollowUp(int seed, string difficulty, string scenarioId, bool isTraining)
+        {
+            var run = new RunInfo(nextRunId++, seed, difficulty, scenarioId, isTraining, isFollowUp: true);
+            playedSeeds.Add(seed);
+            playedScenarios.Add(scenarioId ?? string.Empty);
             return run;
         }
 

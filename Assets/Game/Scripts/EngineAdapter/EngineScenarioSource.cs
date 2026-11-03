@@ -26,10 +26,14 @@ namespace SalesSim.EngineAdapter
         /// <summary>The engine's pool for selling the Google review stand during a salon visit.</summary>
         public const string ReviewStandPool = "review-stand-visit";
 
+        /// <summary>The engine's pool for presenting a prepared website draft during a salon visit (demo link, follow-up).</summary>
+        public const string PrototypePool = "website-prototype-visit";
+
         private static readonly (string Pool, string Label)[] KnownKinds =
         {
             (DefaultPool, "Website & Co. (Telefon oder Besuch)"),
             (ReviewStandPool, "Bewertungsaufsteller (Vor-Ort-Besuch)"),
+            (PrototypePool, "Website-Prototyp (Vor-Ort-Besuch)"),
         };
 
         private readonly ContentRepository repository;
