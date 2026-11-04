@@ -31,7 +31,7 @@ namespace SalesSim.Presentation
             if (saleText != null)
             {
                 saleText.text = ProductSaleText.Status(state);
-                saleText.gameObject.SetActive(state.ProductSale != null || state.Prototype != null);
+                saleText.gameObject.SetActive(state.ProductSale != null || state.Prototype != null || state.IsMultiOffer);
             }
         }
 

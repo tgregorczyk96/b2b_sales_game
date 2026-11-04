@@ -225,10 +225,10 @@ namespace SalesSim.Presentation
             UpdateBalance();
 
             resultView.Show(currentLead, economy.closerShare, wallet.Balance, conversation.GuidanceUsage, CurrentRun, previousScore, currentProduct,
-                finalState.Prototype, finalState.FollowUp);
+                finalState.Prototype, finalState.FollowUp, finalState);
         }
 
-        /// <summary>New runs and random seeds use the scenario kind chosen in the setup (website or review stand on site).</summary>
+        /// <summary>New runs and random seeds use the contact type chosen in the setup (visit or phone call, both offers each).</summary>
         private void UseSelectedKind()
         {
             var kind = setupView.SelectedKind;

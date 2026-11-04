@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using SalesSim.Game;
 using TMPro;
 using UnityEngine;
@@ -12,7 +13,8 @@ namespace SalesSim.Presentation
     /// lead quality and value, closer share, payout, and how much live guidance was used (shown only; it does not change
     /// value or payout). A training run (rerun of a known seed) shows the full evaluation but cannot be sold. A product sold
     /// directly (e.g. the review stand) gets its own block: sold, set up on site, payment method and status, booked revenue
-    /// and the further course (e.g. the website).
+    /// and the further course (e.g. the website). In a conversation with several offers every offer gets its own block, headed by
+    /// the deals closed in it.
     /// </summary>
     public sealed class RunResultView : MonoBehaviour
     {
@@ -75,21 +77,40 @@ namespace SalesSim.Presentation
         /// <param name="product">The directly sold product of the run; <c>null</c> or without product shows no product block.</param>
         public void Show(
             LeadSale sale, float closerShare, int balance, GuidanceUsage guidance, RunInfo run = null, float? previousScore = null,
-            ProductSettlement product = null, SalesSim.Application.WebsitePrototypeState prototype = null, SalesSim.Application.FollowUpDue followUp = null)
+            ProductSettlement product = null, SalesSim.Application.WebsitePrototypeState prototype = null, SalesSim.Application.FollowUpDue followUp = null,
+            SalesSim.Application.SalesSessionState finalState = null)
         {
             var lead = sale.Evaluation;
             runText.text = RunSummary(run, lead.Score, previousScore);
             var hasProduct = product != null && product.HasProduct;
-            outcomeText.text = hasProduct && product.Sale.FollowUpStarted
-                ? $"Gesprächsergebnis: {EndReasonText(lead.EndReason)} · {product.Sale.FollowUpOffer}-Vereinbarung: {CommitmentText(lead.Commitment)}"
-                : hasProduct
-                    ? $"Gesprächsergebnis: {EndReasonText(lead.EndReason)}"
-                    : $"Gesprächsergebnis: {EndReasonText(lead.EndReason)} · Vereinbarung: {CommitmentText(lead.Commitment)}";
+            var multi = finalState != null && finalState.IsMultiOffer;
+            var leadOffer = multi ? finalState.Offers.FirstOrDefault(o => !o.IsDirectSale) : null;
+            outcomeText.text = multi
+                ? $"Gesprächsergebnis: {EndReasonText(lead.EndReason)}" + (leadOffer == null ? string.Empty : $" · {leadOffer.Name}: {ProductSaleText.LeadStatusText(leadOffer)}")
+                : hasProduct && product.Sale.FollowUpStarted
+                    ? $"Gesprächsergebnis: {EndReasonText(lead.EndReason)} · {product.Sale.FollowUpOffer}-Vereinbarung: {CommitmentText(lead.Commitment)}"
+                    : hasProduct
+                        ? $"Gesprächsergebnis: {EndReasonText(lead.EndReason)}"
+                        : $"Gesprächsergebnis: {EndReasonText(lead.EndReason)} · Vereinbarung: {CommitmentText(lead.Commitment)}";
             if (productText != null)
             {
-                var blocks = (hasProduct ? ProductSaleText.Summary(product) : string.Empty);
-                var draft = ProductSaleText.PrototypeSummary(prototype, followUp);
-                productText.text = blocks.Length == 0 ? draft : draft.Length == 0 ? blocks : blocks + "\n" + draft;
+                var parts = new System.Collections.Generic.List<string>();
+                if (multi)
+                {
+                    // One block per offer: several deals in one conversation, each with its own result.
+                    parts.Add(ProductSaleText.ClosedDealsLine(finalState));
+                    foreach (var offer in finalState.Offers)
+                    {
+                        parts.Add(offer.IsDirectSale ? ProductSaleText.Summary(product, withFollowUp: false) : ProductSaleText.LeadSummary(offer));
+                    }
+                }
+                else if (hasProduct)
+                {
+                    parts.Add(ProductSaleText.Summary(product));
+                }
+
+                parts.Add(ProductSaleText.PrototypeSummary(prototype, followUp));
+                productText.text = string.Join("\n", parts.Where(p => !string.IsNullOrEmpty(p)));
                 productText.gameObject.SetActive(productText.text.Length > 0);
             }
 

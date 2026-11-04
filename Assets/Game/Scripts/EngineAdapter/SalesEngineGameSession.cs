@@ -161,10 +161,10 @@ namespace SalesSim.EngineAdapter
             coach = new TrainingCoach(newSession, exampleGenerator, ToTrainee(request.Player));
             sessionId = Guid.NewGuid().ToString("N");
             var opening = newSession.Turns[newSession.Turns.Count - 1].Text;
-            var (sale, commitment, hasLead) = SaleView();
+            var (sale, commitment, hasLead, offers) = SaleView();
             CurrentState = new SalesSessionState(
                 sessionId, opening, ToIndicators(newSession.CustomerState), newSession.Stage.ToString(), string.Empty, newSession.IsEnded,
-                string.Empty, commitment, sale, hasLead, PrototypeView(), null, LeadDeferred());
+                string.Empty, commitment, sale, hasLead, PrototypeView(), null, LeadDeferred(), offers);
             return Task.FromResult(CurrentState);
         }
 
@@ -204,16 +204,22 @@ namespace SalesSim.EngineAdapter
             log($"{LogPrefix}Fallback reason: {fallbackReason ?? "-"}");
 
             var intent = result.CustomerReaction == null ? string.Empty : result.CustomerReaction.Intent.ToString();
-            var (sale, commitment, hasLead) = SaleView();
+            var (sale, commitment, hasLead, offers) = SaleView();
             if (sale != null)
             {
                 log($"{LogPrefix}Sale: {sale.ProductName} sold {(sale.IsSold ? "yes" : "no")}, setup {sale.SetupStepsDone}/{sale.SetupStepsRequired}, "
-                    + $"payment {(sale.PaymentMethod.Length == 0 ? "-" : sale.PaymentMethod)} {sale.PaymentStatus}, follow-up {(sale.FollowUpStarted ? sale.FollowUpOffer : "-")}");
+                    + $"payment {(sale.PaymentMethod.Length == 0 ? "-" : sale.PaymentMethod)} {sale.PaymentStatus}");
+            }
+
+            if (offers.Length > 1)
+            {
+                log($"{LogPrefix}Offers: " + string.Join(", ", offers.Select(o => $"{o.Name}{(o.IsActive ? " (active)" : string.Empty)} "
+                    + $"{(o.Discussed ? "discussed" : "not discussed")}{(o.Commitment.Length > 0 ? " " + o.Commitment : string.Empty)}{(o.Declined ? " declined" : string.Empty)}")));
             }
 
             CurrentState = new SalesSessionState(
                 sessionId, result.CustomerReply, ToIndicators(result.StateAfter), result.Stage.ToString(), intent, result.End != null,
-                result.End == null ? string.Empty : result.End.Reason.ToString(), commitment, sale, hasLead, PrototypeView(), DueFollowUp(), LeadDeferred());
+                result.End == null ? string.Empty : result.End.Reason.ToString(), commitment, sale, hasLead, PrototypeView(), DueFollowUp(), LeadDeferred(), offers);
             return CurrentState;
         }
 
@@ -226,10 +232,10 @@ namespace SalesSim.EngineAdapter
 
             cancellationToken.ThrowIfCancellationRequested();
             var ended = engine.EndScenario();
-            var (sale, commitment, hasLead) = SaleView();
+            var (sale, commitment, hasLead, offers) = SaleView();
             CurrentState = new SalesSessionState(
                 sessionId, string.Empty, ToIndicators(ended.CustomerState), ended.Stage.ToString(), CurrentState.Intent, ended.IsEnded,
-                ended.End == null ? string.Empty : ended.End.Reason.ToString(), commitment, sale, hasLead, PrototypeView(), DueFollowUp(), LeadDeferred());
+                ended.End == null ? string.Empty : ended.End.Reason.ToString(), commitment, sale, hasLead, PrototypeView(), DueFollowUp(), LeadDeferred(), offers);
             return Task.FromResult(CurrentState);
         }
 
@@ -348,22 +354,33 @@ namespace SalesSim.EngineAdapter
         private bool LeadDeferred() => session.Prototype?.FollowUpDue ?? false;
 
         /// <summary>
-        /// The engine's product sale (if any), the commitment that counts for the lead, and whether there is a lead offer at all.
-        /// Ordinary scenarios: no product, the closing outcome's current commitment, always a lead offer. With a directly sold
-        /// product: buying it is product revenue, not a lead — the lead is only the follow-up offer (e.g. the website), with its
-        /// own commitment, once the player moved on to it.
+        /// The engine's product sale (if any), the commitment that counts for the lead, whether there is a lead offer at all, and
+        /// every offer's own progress. Ordinary scenarios: no product, the closing outcome's current commitment, always a lead offer.
+        /// With a directly sold product: buying it is product revenue, not a lead — the lead is only the lead offer (e.g. the
+        /// website), with its own commitment, once it came up in the conversation. Several offers can be sold in one conversation;
+        /// each keeps its own result, so nothing is counted twice.
         /// </summary>
-        private (ProductSaleState Sale, string Commitment, bool HasLeadOffer) SaleView()
+        private (ProductSaleState Sale, string Commitment, bool HasLeadOffer, OfferProgressState[] Offers) SaleView()
         {
+            var outcomes = session.Offers;
+            var offers = outcomes.Select(o => new OfferProgressState(
+                o.Offer.Id, o.Offer.DisplayName, o.IsDirectSale, o.IsOccasion, o.IsActive, o.Discussed,
+                o.Commitment?.ToString() ?? string.Empty, o.Declined)).ToArray();
             var sale = session.DirectSale;
-            if (sale == null)
+            if (sale == null && outcomes.Count == 1)
             {
                 var current = session.ClosingOutcome.Current;
-                return (null, current == null ? string.Empty : current.Kind.ToString(), true);
+                return (null, current == null ? string.Empty : current.Kind.ToString(), true, offers);
             }
 
-            var followUp = sale.FollowUpClosing?.Current;
-            var followUpCommitment = followUp == null ? string.Empty : followUp.Kind.ToString();
+            var lead = outcomes.FirstOrDefault(o => !o.IsDirectSale);
+            var leadCommitment = lead?.Commitment?.ToString() ?? string.Empty;
+            var hasLead = lead != null && lead.Discussed;
+            if (sale == null)
+            {
+                return (null, leadCommitment, hasLead, offers);
+            }
+
             var required = DirectSaleRules.RequiredSetup;
             var state = new ProductSaleState(
                 sale.Product.DisplayName,
@@ -382,10 +399,10 @@ namespace SalesSim.EngineAdapter
                 sale.BookedRevenue,
                 sale.OutstandingRevenue,
                 sale.Result.ToString(),
-                sale.FollowUpOffer == null ? string.Empty : sale.FollowUpOffer.DisplayName,
-                followUpCommitment,
+                hasLead ? lead.Offer.DisplayName : string.Empty,
+                hasLead ? leadCommitment : string.Empty,
                 sale.QuestionableClaims.Count);
-            return (state, followUpCommitment, sale.FollowUpOffer != null);
+            return (state, leadCommitment, hasLead, offers);
         }
 
         /// <summary>The engine's failure as the game's reason; the engine message stays the (key-free) exception message.</summary>

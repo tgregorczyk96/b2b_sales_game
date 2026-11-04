@@ -128,7 +128,7 @@ namespace SalesSim.Tests.EditMode
         [Test]
         public async Task NotPrepared_HasNoPrototype_AndNoFollowUp()
         {
-            var final = await new Visit().Turn("Hallo!", "Hallo.", Sees()).PlayAsync(EngineScenarioSource.DefaultPool + ":1406361028");
+            var final = await new Visit().Turn("Hallo!", "Hallo.", Sees()).PlayAsync(EngineScenarioSource.WebsitePool + ":1406361028");
 
             Assert.That(final.Prototype, Is.Null);
             Assert.That(final.FollowUp, Is.Null);

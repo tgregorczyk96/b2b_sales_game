@@ -1,0 +1,7 @@
+{
+  "id": "sales-call",
+  "base": "hair-salon",
+  "channels": [ "ColdCall" ],
+  "offers": [ "review-stand", "website" ],
+  "multiOffer": true
+}

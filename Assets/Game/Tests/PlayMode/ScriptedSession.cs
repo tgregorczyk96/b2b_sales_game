@@ -48,8 +48,13 @@ namespace SalesSim.Tests.PlayMode
             LastStart = request;
             // Like the engine: a review stand visit starts with the product unsold and without a lead offer.
             var stand = request.ScenarioId.StartsWith(ScriptedScenarioSource.StandKind + ":", StringComparison.Ordinal);
+            // Both offers (visit or call): the stand is the occasion and the topic, the website comes along; a lead only once it came up.
+            var call = request.ScenarioId.StartsWith(ScriptedScenarioSource.MultiCallKind + ":", StringComparison.Ordinal);
+            var multi = call || request.ScenarioId.StartsWith(ScriptedScenarioSource.MultiVisitKind + ":", StringComparison.Ordinal);
+            stand = stand || multi;
+            var offers = multi ? Offers(standActive: true) : null;
             var product = stand
-                ? new ProductSaleState("Google-Bewertungsaufsteller", 39m, "EUR", false, false, false, false, true, "NotStarted", 0, 4,
+                ? new ProductSaleState("Google-Bewertungsaufsteller", 39m, "EUR", false, false, false, false, !call, "NotStarted", 0, 4,
                     string.Empty, "NotStarted", 0m, 0m, "NotSold", string.Empty, string.Empty)
                 : null;
             // A prototype visit starts with the draft prepared; a follow-up starts in review, greeted like a returning visitor.
@@ -57,9 +62,17 @@ namespace SalesSim.Tests.PlayMode
                 ? new WebsitePrototypeState(request.IsFollowUp ? "InReview" : "Prepared", false, false, request.IsFollowUp, string.Empty, 0, "Open", 7)
                 : null;
             CurrentState = new SalesSessionState("scripted", request.IsFollowUp ? "Ach, hallo – Sie waren doch letzte Woche schon hier." : "Guten Tag?",
-                Start, "Opening", string.Empty, false, string.Empty, string.Empty, request.IsFollowUp ? null : product, !stand || request.IsFollowUp, draft);
+                Start, "Opening", string.Empty, false, string.Empty, string.Empty, request.IsFollowUp ? null : product, !stand || request.IsFollowUp, draft, null, false, offers);
             return Task.FromResult(CurrentState);
         }
+
+        /// <summary>Stand and website as the engine reports them; the stand is the occasion.</summary>
+        public static OfferProgressState[] Offers(
+            bool standActive, bool websiteDiscussed = false, string websiteCommitment = "", bool standDeclined = false, bool websiteDeclined = false) => new[]
+        {
+            new OfferProgressState("review-stand", "Google-Bewertungsaufsteller", true, true, standActive, true, string.Empty, standDeclined),
+            new OfferProgressState("website", "Website", false, false, !standActive, websiteDiscussed || !standActive, websiteCommitment, websiteDeclined),
+        };
 
         public Task<SalesSessionState> SendPlayerTurnAsync(PlayerTurn turn, CancellationToken cancellationToken = default)
         {
@@ -71,7 +84,7 @@ namespace SalesSim.Tests.PlayMode
         public Task<SalesSessionState> EndSessionAsync(CancellationToken cancellationToken = default)
         {
             CurrentState = new SalesSessionState("scripted", string.Empty, CurrentState.Indicators, "Ended", CurrentState.Intent, true, "NotStated",
-                CurrentState.Commitment, CurrentState.ProductSale, CurrentState.HasLeadOffer, CurrentState.Prototype, EndFollowUp, EndFollowUp != null);
+                CurrentState.Commitment, CurrentState.ProductSale, CurrentState.HasLeadOffer, CurrentState.Prototype, EndFollowUp, EndFollowUp != null, CurrentState.Offers);
             return Task.FromResult(CurrentState);
         }
 

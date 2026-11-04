@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Linq;
+
 namespace SalesSim.Application
 {
     /// <summary>
@@ -44,6 +47,18 @@ namespace SalesSim.Application
         /// <summary>The website lead is decided in the follow-up, not now (so it is never priced twice).</summary>
         public bool LeadDeferred { get; }
 
+        /// <summary>
+        /// Every offer of the conversation (the occasion first) with its own progress; one entry in ordinary single-offer scenarios.
+        /// The player can move between them without a restart, and several can be sold.
+        /// </summary>
+        public IReadOnlyList<OfferProgressState> Offers { get; }
+
+        /// <summary>The offer under discussion right now; <c>null</c> before the conversation started.</summary>
+        public OfferProgressState ActiveOffer => Offers.FirstOrDefault(o => o.IsActive);
+
+        /// <summary>The conversation carries more than one offer (e.g. review stand and website).</summary>
+        public bool IsMultiOffer => Offers.Count > 1;
+
         public SalesSessionState(
             string sessionId,
             string customerMessage,
@@ -57,7 +72,8 @@ namespace SalesSim.Application
             bool hasLeadOffer = true,
             WebsitePrototypeState prototype = null,
             FollowUpDue followUp = null,
-            bool leadDeferred = false)
+            bool leadDeferred = false,
+            IReadOnlyList<OfferProgressState> offers = null)
         {
             SessionId = sessionId ?? string.Empty;
             CustomerMessage = customerMessage ?? string.Empty;
@@ -72,6 +88,7 @@ namespace SalesSim.Application
             Prototype = prototype;
             FollowUp = followUp;
             LeadDeferred = leadDeferred;
+            Offers = offers ?? new OfferProgressState[0];
         }
     }
 }

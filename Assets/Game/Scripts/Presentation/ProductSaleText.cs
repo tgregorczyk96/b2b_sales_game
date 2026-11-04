@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using SalesSim.Application;
 using SalesSim.Game;
 
@@ -13,8 +14,7 @@ namespace SalesSim.Presentation
         /// <summary>The product with its price, e.g. "Google-Bewertungsaufsteller (39,00 €)".</summary>
         public static string Title(ProductSaleState sale) => $"{sale.ProductName} ({Amount(sale.Price, sale.Currency)})";
 
-        /// <summary>One line during the conversation, e.g. "Aufsteller: verkauft · Einrichtung 2/4 · Zahlung: Karte – offen".</summary>
-        /// <summary>The live status line: product sale and/or website draft.</summary>
+        /// <summary>The live status line: one line per offer (several offers), or the product sale, plus the website draft.</summary>
         public static string Status(SalesSessionState state)
         {
             if (state == null)
@@ -22,12 +22,103 @@ namespace SalesSim.Presentation
                 return string.Empty;
             }
 
-            var sale = Status(state.ProductSale);
+            var sale = state.IsMultiOffer ? OffersStatus(state) : Status(state.ProductSale);
             var draft = PrototypeStatus(state.Prototype);
             return sale.Length == 0 ? draft : draft.Length == 0 ? sale : sale + "\n" + draft;
         }
 
-        public static string Status(ProductSaleState sale)
+        /// <summary>
+        /// One line per offer, the one under discussion marked, e.g.
+        /// "▶ Google-Bewertungsaufsteller: verkauft · Einrichtung 2/4 · Zahlung: Barzahlung – bestätigt" and "• Website: Termin vereinbart".
+        /// </summary>
+        public static string OffersStatus(SalesSessionState state)
+        {
+            if (state?.Offers == null || state.Offers.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var lines = new System.Collections.Generic.List<string>();
+            foreach (var offer in state.Offers)
+            {
+                var line = offer.IsDirectSale && state.ProductSale != null
+                    ? Status(state.ProductSale, withFollowUp: false)
+                    : $"{offer.Name}: {LeadStatusText(offer)}";
+                lines.Add((offer.IsActive ? "▶ " : "• ") + line);
+            }
+
+            return string.Join("\n", lines);
+        }
+
+        /// <summary>Where a lead offer (e.g. the website) stands, e.g. "Termin vereinbart" or "noch nicht angesprochen".</summary>
+        public static string LeadStatusText(OfferProgressState offer)
+        {
+            if (offer.Commitment.Length > 0)
+            {
+                return CommitmentStatusText(offer.Commitment);
+            }
+
+            return offer.Declined ? "abgelehnt" : offer.Discussed ? "im Gespräch" : "noch nicht angesprochen";
+        }
+
+        /// <summary>An agreed next step for a lead offer, e.g. "beauftragt" for an Agreement.</summary>
+        public static string CommitmentStatusText(string commitment)
+        {
+            switch (commitment)
+            {
+                case "Agreement": return "beauftragt";
+                case "Appointment": return "Termin vereinbart";
+                case "FollowUp": return "Folgekontakt vereinbart";
+                case "Information": return "Infomaterial zugesagt";
+                case "NoFurtherAction": return "kein weiterer Schritt";
+                default: return "offen";
+            }
+        }
+
+        /// <summary>
+        /// The headline of the result screen for a conversation with several offers, e.g.
+        /// "Abschlüsse in diesem Gespräch: Google-Bewertungsaufsteller, Website" or "Kein Abschluss in diesem Gespräch".
+        /// A product counts once it is sold, a lead offer once it was ordered (Agreement).
+        /// </summary>
+        public static string ClosedDealsLine(SalesSessionState state)
+        {
+            if (state == null || !state.IsMultiOffer)
+            {
+                return string.Empty;
+            }
+
+            var closed = state.Offers
+                .Where(o => o.IsDirectSale ? state.ProductSale != null && state.ProductSale.IsSold : o.Commitment == "Agreement")
+                .Select(o => o.Name)
+                .ToList();
+            return closed.Count == 0
+                ? "Kein Abschluss in diesem Gespräch"
+                : (closed.Count == 1 ? "Abschluss in diesem Gespräch: " : $"{closed.Count} Abschlüsse in diesem Gespräch: ") + string.Join(", ", closed);
+        }
+
+        /// <summary>The block of a lead offer (e.g. the website) on the result screen of a conversation with several offers.</summary>
+        public static string LeadSummary(OfferProgressState offer)
+        {
+            if (offer == null || offer.IsDirectSale)
+            {
+                return string.Empty;
+            }
+
+            var text = offer.Name
+                       + $"\n• Angesprochen: {YesNo(offer.Discussed)}{(offer.IsOccasion ? " (Gesprächsanlass)" : string.Empty)}"
+                       + $"\n• Ergebnis: {LeadStatusText(offer)}";
+            if (offer.Commitment.Length > 0 && offer.Commitment != "NoFurtherAction")
+            {
+                text += "\n• Vergütung: als Lead an den Closer (siehe unten)";
+            }
+
+            return text;
+        }
+
+        /// <summary>One line for the product, e.g. "Aufsteller: verkauft · Einrichtung 2/4 · Zahlung: Karte – offen".</summary>
+        public static string Status(ProductSaleState sale) => Status(sale, withFollowUp: true);
+
+        private static string Status(ProductSaleState sale, bool withFollowUp)
         {
             if (sale == null)
             {
@@ -48,7 +139,7 @@ namespace SalesSim.Presentation
                 line += $" · erklärt: NFC {Check(sale.NfcExplained)}, QR {Check(sale.QrCodeExplained)}";
             }
 
-            if (sale.FollowUpStarted)
+            if (withFollowUp && sale.FollowUpStarted)
             {
                 line += $" · {sale.FollowUpOffer}: im Gespräch";
             }
@@ -57,7 +148,8 @@ namespace SalesSim.Presentation
         }
 
         /// <summary>The product block of the result screen.</summary>
-        public static string Summary(ProductSettlement settlement)
+        /// <param name="withFollowUp">Adds the "further course" line; off when every offer has its own block.</param>
+        public static string Summary(ProductSettlement settlement, bool withFollowUp = true)
         {
             var sale = settlement?.Sale;
             if (sale == null)
@@ -69,8 +161,12 @@ namespace SalesSim.Presentation
                        + $"\n• Aufsteller verkauft: {YesNo(sale.IsSold)}{(sale.PurchaseDeclined ? " (abgelehnt)" : string.Empty)}"
                        + $"\n• Vor-Ort-Einrichtung abgeschlossen: {SetupLine(sale)}"
                        + $"\n• Zahlungsmethode: {MethodText(sale.PaymentMethod)}"
-                       + $"\n• Zahlungsstatus: {PaymentStatusText(sale.PaymentStatus)}{RevenueLine(settlement)}"
-                       + $"\n• Weiterer Verlauf: {FollowUpLine(sale)}";
+                       + $"\n• Zahlungsstatus: {PaymentStatusText(sale.PaymentStatus)}{RevenueLine(settlement)}";
+            if (withFollowUp)
+            {
+                text += $"\n• Weiterer Verlauf: {FollowUpLine(sale)}";
+            }
+
             if (sale.QuestionableClaims > 0)
             {
                 text += sale.QuestionableClaims == 1

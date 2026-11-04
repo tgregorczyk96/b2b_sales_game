@@ -1,6 +1,6 @@
 # Sales Engine ↔ Unity – Integration
 
-Stand: 2026-11-03 · Unity 6000.5.2f1 · Engine `tgregorczyk96/sales_engine`, `feature/review-stand-direct-sale@ba32a13` (Bewertungsaufsteller; davor `main@029e3e7`)
+Stand: 2026-11-04 · Unity 6000.5.2f1 · Engine `tgregorczyk96/sales_engine`, `feature/multi-offer-conversation@029a3d1` (ein Verkaufsmodus für Aufsteller und Website; davor `main@60a1e7d`)
 
 ## Kurzfassung
 
@@ -234,6 +234,16 @@ Die Figur auf dem Bildschirm ist der **Kunde** (Salon-Inhaberin aus dem Szenario
 - **Economy:** Mit Demo-Link ist der Website-Lead „im Nachfass“ (Wert 0) und wird im Folgegespräch bewertet; Aufsteller-Umsatz wird im Erstgespräch gebucht. Folgegespräch eines Trainingslaufs bleibt Training.
 - **Tests:** Engine 1.677 bestanden / 26 übersprungen (+28). Unity EditMode 155/3 (+8, `WebsitePrototypeTests`), PlayMode 96/1 (+5, `PrototypeFollowUpFlowTests`). Live-Lauf Aufsteller → Entwurf → Demo → Folgegespräch bestanden.
 - **Website-Preise (2026-11-03):** Paketpreise von tom-gre-it.de in `offers/website.json` (regulär und Gründungsangebot). Die Engine zeigt sie in den Hinweisen und prüft genannte Preise; `WebsitePrototypeState.PricesNamed` / `WrongPrices`, im Result „Preise genannt“ und „Nicht in der Preisliste“. Aufsteller: Link nachträglich änderbar (Weiterleitung der Aufsteller-ID im Backend). Tests: Engine 1.692/26, Unity EditMode 156/3, PlayMode 96/1.
+
+## Ein Verkaufsmodus für beide Produkte (2026-11-04)
+
+- **Vorher:** drei produktabhängige Arten im Setup („Website & Co.“, „Bewertungsaufsteller (Vor-Ort-Besuch)“, „Website-Prototyp (Vor-Ort-Besuch)“), je ein Engine-Pool. Ein Wechsel ging nur einmal und nur vom Aufsteller zur Website.
+- **Jetzt:** Das Setup bietet **Kontaktarten** an: „Vor-Ort-Besuch (Aufsteller & Website)“ (`sales-visit`, mit Einrichtung vor Ort und vorbereitetem Website-Entwurf samt 7-Tage-Demo) und „Telefonat (Aufsteller & Website)“ (`sales-call`, ohne Einrichtung). In beiden kann der Spieler den Aufsteller, die Website oder beides verkaufen, in beliebiger Reihenfolge, hin und zurück, ohne Neustart. Der Seed bestimmt nur den Gesprächsanlass. Regeln und Kundenverhalten liegen vollständig in der Engine, siehe `sales_engine/docs/multi-offer.md`.
+- **Alte Pools** (`hair-salon`, `review-stand-visit`, `website-prototype-visit`) werden nicht mehr angeboten, bleiben aber per Szenario-Id spielbar (Rerun eines alten Runs, gespeicherte Folgegespräche). `SalesTestSceneBootstrap.generationPool` steht auf `sales-visit`.
+- **Boundary:** `SalesSessionState.Offers` (`OfferProgressState` je Angebot: Anlass, aktiv, angesprochen, vereinbarter nächster Schritt, abgelehnt), `ActiveOffer`, `IsMultiOffer`. Kauf, Einrichtung und Zahlung des Aufstellers bleiben in `ProductSale`. `HasLeadOffer` = die Website kam im Gespräch vor (war mindestens einen Zug Thema oder es gab etwas für sie); `Commitment` = Vereinbarung für die Website.
+- **Economy (unverändert in der Formel):** Aufsteller-Umsatz nur bei bestätigter Zahlung (`ProductSettlement`, einmal), offene Zahlung nur angezeigt; Website-Lead über `LeadEvaluator`, nur wenn die Website vorkam. Beides getrennt, nie doppelt; Trainingsläufe buchen nichts.
+- **UI:** Statuszeile mit einer Zeile pro Angebot, `▶` markiert das aktuelle Thema (z. B. „▶ Website: Termin vereinbart“, „• Google-Bewertungsaufsteller: verkauft · Einrichtung 4/4 · Zahlung: Barzahlung – bestätigt“). Result Screen: „2 Abschlüsse in diesem Gespräch: …“ bzw. „Kein Abschluss …“, dann ein Block je Angebot (Aufsteller: Kauf, Einrichtung, Zahlung; Website: angesprochen, Ergebnis) und der Entwurfsblock. Setup-Überschrift „Kontaktart …“ (Szene und `GameLoopUiBuilder`).
+- **Tests:** Engine 1.725 bestanden / 27 übersprungen (+33, davon der opt-in Live-Test übersprungen: `MultiOfferIntegrationTests`, `MultiOfferContentTests`, `MultiOfferPromptTests`, Nachfass aus Website-Anlass). Unity EditMode 169 bestanden / 3 übersprungen (+14 `MultiProductSaleTests`: Aufsteller → Website, Website → Aufsteller, Aufsteller abgelehnt → Website, Website abgelehnt → Aufsteller, beide abgelehnt, nur ein Produkt, Telefonat ohne Einrichtung, Training, Statuszeile, Kundengedächtnis, alte Pools). PlayMode 102 bestanden / 1 übersprungen (+6 `MultiProductFlowTests`). Live-Lauf gegen Anthropic (`LiveMultiOfferTests`, opt-in) bestanden.
 
 ## Weitere offene Punkte
 

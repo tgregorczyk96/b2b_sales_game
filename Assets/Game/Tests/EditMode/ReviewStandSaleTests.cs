@@ -249,12 +249,12 @@ namespace SalesSim.Tests.EditMode
         [Test]
         public async Task WebsiteScenarios_HaveNoProductSale_AndKeepTheirCommitment()
         {
-            var generator = new ContentRepository(ContentDirectory).LoadGenerator(EngineScenarioSource.DefaultPool);
+            var generator = new ContentRepository(ContentDirectory).LoadGenerator(EngineScenarioSource.WebsitePool);
             var seed = Enumerable.Range(0, 500).First(s => generator.Generate(s).Scenario.Offer.Id == "website");
             var visit = new Visit().Turn("Darf ich Ihnen Donnerstag einen Termin vorschlagen?", "Ja, gerne.",
                 Sees(steps: new[] { Step(1, CommitmentKind.Appointment, "Darf ich Ihnen Donnerstag einen Termin vorschlagen?", "Ja, gerne") }));
 
-            var (_, final) = await visit.PlayAsync($"{EngineScenarioSource.DefaultPool}:{seed}");
+            var (_, final) = await visit.PlayAsync($"{EngineScenarioSource.WebsitePool}:{seed}");
 
             Assert.That(final.ProductSale, Is.Null);
             Assert.That(final.HasLeadOffer, Is.True);
@@ -264,13 +264,16 @@ namespace SalesSim.Tests.EditMode
         // --- Scenario kinds -----------------------------------------------------------------------------------------------------
 
         [Test]
-        public void ScenarioSource_OffersTheWebsiteAndTheReviewStandVisit()
+        public void ScenarioSource_OffersTheContactTypes_AndKeepsTheEarlierPoolsPlayable()
         {
             var source = new EngineScenarioSource(ContentDirectory, random: new Random(3));
 
-            Assert.That(source.Kinds.Select(k => k.Id),
-                Is.EqualTo(new[] { EngineScenarioSource.DefaultPool, EngineScenarioSource.ReviewStandPool, EngineScenarioSource.PrototypePool }));
+            // Visit and phone call, both with stand and website; the product-specific pools are no longer offered.
+            Assert.That(source.Kinds.Select(k => k.Id), Is.EqualTo(new[] { EngineScenarioSource.VisitPool, EngineScenarioSource.CallPool }));
+            Assert.That(source.Kinds.Select(k => k.Label), Is.EqualTo(new[] { "Vor-Ort-Besuch (Aufsteller & Website)", "Telefonat (Aufsteller & Website)" }));
             Assert.That(source.SelectedKind, Is.EqualTo(EngineScenarioSource.DefaultPool));
+
+            // An earlier pool still runs by id (saved reruns and follow-ups).
 
             source.Select(EngineScenarioSource.ReviewStandPool);
             var seed = source.PickRandomSeed();

@@ -218,8 +218,9 @@ namespace SalesSim.Editor
             title.fontStyle = FontStyles.Bold;
             title.text = "Neuer Run";
 
-            // What is sold in the run: labelled at runtime with the engine's scenario kinds (hidden when there is only one).
-            NewText("KindLabel", panel, 22f, new Color(0.72f, 0.8f, 0.92f)).text = "Was verkaufst du?";
+            // How the customer is met (visit or phone call): labelled at runtime with the engine's scenario kinds (hidden when there
+            // is only one). Both offers can be sold in every kind; which one the customer needs comes out in the conversation.
+            NewText("KindLabel", panel, 22f, new Color(0.72f, 0.8f, 0.92f)).text = "Kontaktart (Aufsteller und Website sind jeweils im Gespräch möglich)";
             var kindRow = NewRow("KindButtons", panel, 64f);
             var kinds = new List<Button>();
             for (var i = 0; i < 3; i++)

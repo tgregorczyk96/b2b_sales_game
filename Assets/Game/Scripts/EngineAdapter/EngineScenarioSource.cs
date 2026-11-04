@@ -14,27 +14,41 @@ namespace SalesSim.EngineAdapter
     /// the same origin for the same seed at every difficulty.
     /// </summary>
     /// <remarks>
-    /// The kinds are the engine's generation pools that exist in the content: <c>hair-salon</c> (website, Google profile or
-    /// review stand, by phone or visit) and <c>review-stand-visit</c> (the review stand sold and set up on site, website as
-    /// follow-up). The pools themselves — which offers, which situations — are engine content; this class only labels them.
+    /// The kinds are the contact types (on-site visit, phone call), each an engine generation pool in which the player can sell
+    /// both offers in one conversation — the review stand and the website, in any order, depending on what the customer needs:
+    /// <c>sales-visit</c> (on site, stand set up right there, prepared website draft with demo link) and <c>sales-call</c> (by
+    /// phone, no setup). The seed picks the occasion of the contact; the other offer comes along. The earlier product-specific
+    /// pools (<c>hair-salon</c>, <c>review-stand-visit</c>, <c>website-prototype-visit</c>) are no longer offered but stay
+    /// playable by id (saved reruns and follow-ups). The pools themselves are engine content; this class only labels them.
     /// </remarks>
     public sealed class EngineScenarioSource : IScenarioSource
     {
-        /// <summary>The engine's generation pool the simulator plays by default (same as the console's <c>--seed</c>).</summary>
-        public const string DefaultPool = "hair-salon";
+        /// <summary>The engine's pool for a salon visit with both offers (review stand and website). Played by default.</summary>
+        public const string VisitPool = "sales-visit";
 
-        /// <summary>The engine's pool for selling the Google review stand during a salon visit.</summary>
+        /// <summary>The engine's pool for a phone call with both offers (review stand and website), without on-site setup.</summary>
+        public const string CallPool = "sales-call";
+
+        /// <summary>The pool new runs use by default: the visit with both offers.</summary>
+        public const string DefaultPool = VisitPool;
+
+        /// <summary>Earlier pool: website, Google profile or review stand as the only offer, by phone or visit.</summary>
+        public const string WebsitePool = "hair-salon";
+
+        /// <summary>Earlier pool: selling the Google review stand during a salon visit, website only afterwards.</summary>
         public const string ReviewStandPool = "review-stand-visit";
 
-        /// <summary>The engine's pool for presenting a prepared website draft during a salon visit (demo link, follow-up).</summary>
+        /// <summary>Earlier pool: presenting a prepared website draft during a salon visit (demo link, follow-up).</summary>
         public const string PrototypePool = "website-prototype-visit";
 
         private static readonly (string Pool, string Label)[] KnownKinds =
         {
-            (DefaultPool, "Website & Co. (Telefon oder Besuch)"),
-            (ReviewStandPool, "Bewertungsaufsteller (Vor-Ort-Besuch)"),
-            (PrototypePool, "Website-Prototyp (Vor-Ort-Besuch)"),
+            (VisitPool, "Vor-Ort-Besuch (Aufsteller & Website)"),
+            (CallPool, "Telefonat (Aufsteller & Website)"),
         };
+
+        /// <summary>Pools that can still be selected by id, but are not offered as a kind.</summary>
+        private static readonly string[] EarlierPools = { WebsitePool, ReviewStandPool, PrototypePool };
 
         private readonly ContentRepository repository;
         private readonly Random random;
@@ -43,7 +57,7 @@ namespace SalesSim.EngineAdapter
         private readonly object gate = new object();
 
         /// <param name="contentDirectory">The engine's <c>content</c> folder.</param>
-        /// <param name="pool">The generation pool used first, e.g. <c>hair-salon</c>.</param>
+        /// <param name="pool">The generation pool used first, e.g. <c>sales-visit</c>; an earlier pool is used but not offered as a kind.</param>
         /// <param name="random">Only picks seeds; tests pass a seeded one. <c>null</c> uses a time-seeded one.</param>
         public EngineScenarioSource(string contentDirectory, string pool = DefaultPool, Random random = null)
         {
@@ -55,7 +69,7 @@ namespace SalesSim.EngineAdapter
                 .Where(k => k.Pool == pool || File.Exists(Path.Combine(contentDirectory, "generation", k.Pool + ".json")))
                 .Select(k => new ScenarioKind(k.Pool, k.Label))
                 .ToList();
-            if (kinds.All(k => k.Id != pool))
+            if (kinds.All(k => k.Id != pool) && !EarlierPools.Contains(pool))
             {
                 kinds.Insert(0, new ScenarioKind(pool, pool));
             }
@@ -70,11 +84,11 @@ namespace SalesSim.EngineAdapter
 
         public string SelectedKind { get; private set; }
 
-        /// <exception cref="ArgumentException">Not one of <see cref="Kinds"/>.</exception>
+        /// <exception cref="ArgumentException">Not one of <see cref="Kinds"/> (or an earlier pool, still playable by id).</exception>
         /// <exception cref="ContentException">The pool's content is invalid.</exception>
         public void Select(string kindId)
         {
-            if (Kinds.All(k => k.Id != kindId))
+            if (Kinds.All(k => k.Id != kindId) && !EarlierPools.Contains(kindId))
             {
                 throw new ArgumentException($"Unknown scenario kind '{kindId}'.", nameof(kindId));
             }

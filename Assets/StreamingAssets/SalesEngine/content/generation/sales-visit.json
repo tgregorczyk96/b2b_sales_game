@@ -1,0 +1,12 @@
+{
+  "id": "sales-visit",
+  "base": "hair-salon",
+  "channels": [ "WalkIn" ],
+  "offers": [ "review-stand", "website" ],
+  "multiOffer": true,
+  "prototype": {
+    "offer": "website",
+    "description": "Ein mobiler Website-Entwurf im Stil des Salons: Startseite mit Fotos, Leistungen und Preisen, Öffnungszeiten, Anfahrt, ein Button für Terminanfragen und ein Link zu den Google-Bewertungen.",
+    "demoDays": 7
+  }
+}

@@ -45,7 +45,7 @@ namespace SalesSim.Tests.EditMode
         {
             var source = new EngineScenarioSource(ContentDirectory);
 
-            Assert.That(source.ScenarioIdFor(Seed), Is.EqualTo("hair-salon:" + Seed));
+            Assert.That(source.ScenarioIdFor(Seed), Is.EqualTo(EngineScenarioSource.DefaultPool + ":" + Seed));
             Assert.Throws<ArgumentOutOfRangeException>(() => source.ScenarioIdFor(-1));
         }
 
@@ -57,7 +57,7 @@ namespace SalesSim.Tests.EditMode
             var sequence = Enumerable.Range(0, 20).Select(_ => source.PickRandomSeed()).ToList();
             UnityEngine.Debug.Log($"[RunSetup] 20 random seeds picked in {watch.ElapsedMilliseconds} ms (first pick builds the candidate list)");
 
-            var generator = new ContentRepository(ContentDirectory).LoadGenerator("hair-salon");
+            var generator = new ContentRepository(ContentDirectory).LoadGenerator(EngineScenarioSource.DefaultPool);
             Assert.That(new EngineScenarioSource(ContentDirectory, random: new Random(7)).PickRandomSeed(),
                 Is.EqualTo(TrainingPools.PickSeed(generator, TrainingPool.Standard, new Random(7))),
                 "The engine's own pick; with the same Random the same seed, so tests can fix seeds.");

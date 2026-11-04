@@ -1,5 +1,5 @@
 ﻿Sales Engine build copied by Tools/Sync-SalesEngine.ps1 - do not edit the DLLs or content by hand.
 repository: https://github.com/tgregorczyk96/sales_engine.git
-branch:     main
-commit:     60a1e7ddaa5e0a811eafbead942dc068454727a2
+branch:     feature/multi-offer-conversation
+commit:     029a3d1ba4bc180f1ed381d8e4419560260fe540
 target:     netstandard2.1 (Release)
